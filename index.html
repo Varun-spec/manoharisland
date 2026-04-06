@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Joint Drawing Canvas</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px;
+      font-family: sans-serif;
+      text-align: center;
+      background: #eee;
+    }
+    canvas {
+      border: 2px solid #999;
+      background: white;
+      cursor: crosshair;
+    }
+    #info {
+      margin-top: 10px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Joint Drawing Canvas</h1>
+  <p>Share this page URL with your friends and draw together!</p>
+  <canvas id="canvas" width="600" height="400"></canvas>
+  <div id="info">Waiting for others…</div>
+
+  <!-- PubNub realtime library -->
+  <script src="https://cdn.jsdelivr.net/npm/pubnub@7.5.0/dist/web/pubnub.min.js"></script>
+  <script>
+    // --- CONFIG ---
+    const pubnub = new PubNub({
+      publishKey:   "pub-c-fc766aca-9661-4f55-bc9a-667c55e2b5c1",     // <-- Replace with your PubNub publish key
+      subscribeKey: "sub-c-1dd042db-ecfa-47ad-8d2c-4ecb39394c0b",     // <-- Replace with your PubNub subscribe key
+      uuid: "player_"+Date.now()
+    });
+
+    const channel = "joint-drawing-canvas";
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Set drawing style
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#000";
+
+    // --- DRAW LOCALLY + SEND STROKES ---
+    canvas.addEventListener("mousedown", (e) => {
+      isDrawing = true;
+      [lastX, lastY] = [e.offsetX, e.offsetY];
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!isDrawing) return;
+
+      const x = e.offsetX;
+      const y = e.offsetY;
+
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+
+      pubnub.publish({
+        channel,
+        message: { x, y, lastX, lastY }
+      });
+
+      [lastX, lastY] = [x, y];
+    });
+
+    canvas.addEventListener("mouseup", () => {
+      isDrawing = false;
+    });
+
+    canvas.addEventListener("mouseout", () => {
+      isDrawing = false;
+    });
+
+    // --- RECEIVE OTHER PLAYERS' STROKES ---
+    pubnub.addListener({
+      message: (event) => {
+        const msg = event.message;
+        ctx.beginPath();
+        ctx.moveTo(msg.lastX, msg.lastY);
+        ctx.lineTo(msg.x, msg.y);
+        ctx.stroke();
+      }
+    });
+
+    pubnub.subscribe({ channels: [channel] });
+
+    // Update info text
+    document.getElementById("info").textContent = "Game ready! Tell friends to open this page.";
+  </script>
+</body>
+</html>
