@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Joint Drawing Canvas – Gartic Mode</title>
+  <title>Joint Drawing Canvas</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -69,19 +69,20 @@
       background: #222;
       border-radius: 8px;
       padding: 16px;
-      max-width: 480px;
+      max-width: 520px;
       width: 100%;
       box-shadow: 0 0 8px rgba(0,0,0,0.5);
     }
     #lobbyBox h2 { margin: 0 0 8px 0; }
     #roomList {
-      max-height: 220px;
+      max-height: 260px;
       overflow-y: auto;
       background: #111;
       border-radius: 6px;
       padding: 6px;
       border: 1px solid #333;
       margin-bottom: 10px;
+      font-size: 13px;
     }
     .roomRow {
       display: flex;
@@ -91,7 +92,16 @@
       border-bottom: 1px solid #222;
     }
     .roomRow:last-child { border-bottom: none; }
+    .roomLeft {
+      display: flex;
+      flex-direction: column;
+    }
     .roomName { font-weight: bold; }
+    .roomMeta { font-size: 11px; color: #aaa; }
+    .roomButtons {
+      display: flex;
+      gap: 4px;
+    }
     #createRoomRow {
       display: flex;
       gap: 6px;
@@ -271,34 +281,6 @@
       flex-shrink: 0;
     }
 
-    #gameControls {
-      margin-top: 8px;
-      padding: 6px;
-      background: #111;
-      border-radius: 6px;
-      border: 1px solid #333;
-      font-size: 12px;
-    }
-    #phaseLabel { font-weight: bold; margin-bottom: 4px; }
-    #gameInputs { margin-top: 4px; }
-    #promptInput, #guessInput {
-      width: 100%;
-      padding: 6px;
-      border-radius: 4px;
-      border: 1px solid #555;
-      background: #222;
-      color: #f5f5f5;
-      font-size: 13px;
-      margin-bottom: 4px;
-    }
-    #submitStepBtn {
-      width: 100%;
-      margin-top: 2px;
-    }
-    #hostControls {
-      margin-top: 6px;
-    }
-
     .floating-emoji {
       position: fixed;
       font-size: 28px;
@@ -310,44 +292,10 @@
       0%   { transform: translateY(0); opacity: 1; }
       100% { transform: translateY(-140px); opacity: 0; }
     }
-
-    #replayOverlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.9);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 30;
-    }
-    #replayBox {
-      background: #222;
-      padding: 16px;
-      border-radius: 8px;
-      max-width: 800px;
-      width: 95%;
-      max-height: 90vh;
-      overflow: auto;
-    }
-    #replayBox h2 { margin-top: 0; }
-    .replayChain {
-      margin-bottom: 14px;
-      border-bottom: 1px solid #444;
-      padding-bottom: 8px;
-    }
-    .replayStepPrompt { color: #f1c40f; }
-    .replayStepGuess { color: #1abc9c; }
-    .replayImage {
-      max-width: 100%;
-      border: 1px solid #555;
-      border-radius: 4px;
-      margin: 4px 0;
-    }
   </style>
 </head>
 <body>
-  <!-- Username -->
+  <!-- Login -->
   <div id="loginOverlay">
     <div id="loginBox">
       <h2>Welcome</h2>
@@ -367,13 +315,13 @@
         <input id="newRoomInput" type="text" placeholder="New room name (e.g. chill)" maxlength="20">
         <button id="createRoomBtn" class="primary">Create</button>
       </div>
-      <div id="lobbyInfo">All rooms are public. Click any room to join it.</div>
+      <div id="lobbyInfo">All rooms are public. You can also delete rooms from here.</div>
     </div>
   </div>
 
   <!-- App -->
   <div id="appScreen">
-    <h1>Joint Drawing Canvas – Mini Gartic</h1>
+    <h1>Joint Drawing Canvas</h1>
     <p id="userLabel"></p>
     <p id="roomLabel"></p>
     <div id="info"></div>
@@ -423,30 +371,7 @@
 
         <div id="onlineTitle">Online (best-effort)</div>
         <div id="onlineList"></div>
-
-        <div id="gameControls">
-          <div id="phaseLabel">Phase: Free draw</div>
-          <div id="gameHint"></div>
-          <div id="gameInputs">
-            <input id="promptInput" type="text" placeholder="Type your prompt..." style="display:none;">
-            <input id="guessInput" type="text" placeholder="Type your guess..." style="display:none;">
-            <button id="submitStepBtn" class="primary" style="display:none;">Submit</button>
-          </div>
-          <div id="hostControls">
-            <!-- NO HOST LOGIC: everyone sees this -->
-            <button id="startGameBtn" class="primary">Start Mini Gartic Game</button>
-          </div>
-        </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Replay -->
-  <div id="replayOverlay">
-    <div id="replayBox">
-      <h2>Game Replay</h2>
-      <div id="replayContent"></div>
-      <button id="closeReplayBtn" class="primary" style="margin-top:8px;">Close</button>
     </div>
   </div>
 
@@ -459,7 +384,7 @@
     const pubnub = new PubNub({
       publishKey:   "pub-c-fc766aca-9661-4f55-bc9a-667c55e2b5c1",
       subscribeKey: "sub-c-1dd042db-ecfa-47ad-8d2c-4ecb39394c0b",
-      uuid: "temp_" + Math.floor(Math.random() * 1e9)
+      uuid: "anon_" + Math.floor(Math.random() * 1e9)
     });
 
     const loginOverlay = document.getElementById("loginOverlay");
@@ -494,19 +419,7 @@
     const chatInput = document.getElementById("chatInput");
     const sendChatBtn = document.getElementById("sendChatBtn");
     const emojiButtons = document.querySelectorAll(".emojiBtn");
-
     const onlineList = document.getElementById("onlineList");
-
-    const phaseLabel = document.getElementById("phaseLabel");
-    const gameHint = document.getElementById("gameHint");
-    const promptInput = document.getElementById("promptInput");
-    const guessInput = document.getElementById("guessInput");
-    const submitStepBtn = document.getElementById("submitStepBtn");
-    const startGameBtn = document.getElementById("startGameBtn");
-
-    const replayOverlay = document.getElementById("replayOverlay");
-    const replayContent = document.getElementById("replayContent");
-    const closeReplayBtn = document.getElementById("closeReplayBtn");
 
     let username = null;
     let myColor = randomNiceColor();
@@ -518,33 +431,51 @@
     let currentTool = "pen";
     let cursors = {};
     let onlineUsers = {};
-    let rooms = {};
-
-    let gamePhase = "free"; // free | prompt | draw | guess | reveal
-    let turnIndex = 0;
-    let playersOrdered = [];
-    let chains = {};
-    let stepsSubmitted = {};
+    let rooms = {}; // roomName -> { createdBy, createdAt }
 
     drawCtx.lineJoin = "round";
     drawCtx.lineCap = "round";
     drawCtx.strokeStyle = currentColor;
     drawCtx.lineWidth = currentSize;
 
-    function joinWithName() {
+    // Login + load lobby history
+    async function joinWithName() {
       const name = usernameInput.value.trim();
       if (!name) return;
       username = name;
       const id = "user_" + name + "_" + Math.floor(Math.random() * 1e5);
       pubnub.setUUID(id);
       loginOverlay.style.display = "none";
-      userLabel.textContent = "You are: " + name + " (color used in chat & cursors)";
+      userLabel.textContent = "You are: " + name;
+
       pubnub.subscribe({ channels: [LOBBY_CHANNEL] });
+      info.textContent = "Loading rooms...";
+
+      try {
+        const result = await pubnub.history({
+          channel: LOBBY_CHANNEL,
+          count: 200,
+          stringifiedTimeToken: true
+        }); // load prior room-create/delete [web:171]
+        const messages = result.messages || [];
+        messages.forEach(item => {
+          const msg = item.entry || item.message || {};
+          if (msg.type === "room-create" && msg.room) {
+            rooms[msg.room] = { createdBy: msg.createdBy || "someone", createdAt: item.timetoken };
+          } else if (msg.type === "room-delete" && msg.room) {
+            delete rooms[msg.room];
+          }
+        });
+      } catch (e) {
+        console.log("Lobby history error", e);
+      }
+      renderRoomList();
       info.textContent = "In lobby. Choose or create a room.";
     }
-    joinBtn.addEventListener("click", joinWithName);
+    joinBtn.addEventListener("click", () => joinWithName());
     usernameInput.addEventListener("keydown", e => { if (e.key === "Enter") joinWithName(); });
 
+    // Lobby UI
     function renderRoomList() {
       roomListDiv.innerHTML = "";
       const names = Object.keys(rooms);
@@ -558,24 +489,34 @@
       names.forEach(name => {
         const row = document.createElement("div");
         row.className = "roomRow";
+
         const left = document.createElement("div");
+        left.className = "roomLeft";
         const rn = document.createElement("span");
         rn.className = "roomName";
         rn.textContent = name;
         const meta = document.createElement("span");
-        meta.style.fontSize = "12px";
-        meta.style.color = "#aaa";
-        meta.textContent = "  by " + (rooms[name].createdBy || "someone");
+        meta.className = "roomMeta";
+        meta.textContent = "by " + (rooms[name].createdBy || "someone");
         left.appendChild(rn);
         left.appendChild(meta);
 
+        const btnWrap = document.createElement("div");
+        btnWrap.className = "roomButtons";
         const joinBtnEl = document.createElement("button");
         joinBtnEl.textContent = "Join";
         joinBtnEl.className = "primary";
         joinBtnEl.addEventListener("click", () => joinRoom(name));
 
+        const delBtnEl = document.createElement("button");
+        delBtnEl.textContent = "Delete";
+        delBtnEl.addEventListener("click", () => deleteRoom(name));
+
+        btnWrap.appendChild(joinBtnEl);
+        btnWrap.appendChild(delBtnEl);
+
         row.appendChild(left);
-        row.appendChild(joinBtnEl);
+        row.appendChild(btnWrap);
         roomListDiv.appendChild(row);
       });
     }
@@ -588,7 +529,10 @@
       if (!safeName) return;
       if (!rooms[safeName]) {
         rooms[safeName] = { createdBy: username, createdAt: Date.now() };
-        pubnub.publish({ channel: LOBBY_CHANNEL, message: { type: "room-create", room: safeName, createdBy: username } });
+        pubnub.publish({
+          channel: LOBBY_CHANNEL,
+          message: { type: "room-create", room: safeName, createdBy: username }
+        });
         renderRoomList();
       }
       joinRoom(safeName);
@@ -596,7 +540,18 @@
     createRoomBtn.addEventListener("click", createRoom);
     newRoomInput.addEventListener("keydown", e => { if (e.key === "Enter") createRoom(); });
 
-    function joinRoom(roomName) {
+    function deleteRoom(roomName) {
+      // Just broadcast "room-delete" so all lobbies remove it [web:171]
+      delete rooms[roomName];
+      renderRoomList();
+      pubnub.publish({
+        channel: LOBBY_CHANNEL,
+        message: { type: "room-delete", room: roomName }
+      });
+      // Note: this doesn't wipe message history; channel can be reused later if wanted.
+    }
+
+    async function joinRoom(roomName) {
       CURRENT_ROOM = roomName;
       ROOM_CHANNEL = "joint-drawing-canvas-" + roomName;
       lobbyScreen.style.display = "none";
@@ -610,11 +565,32 @@
       clearCursorCanvas();
       chatBox.innerHTML = "";
       onlineList.innerHTML = "";
-      resetGameState();
 
       pubnub.subscribe({ channels: [ROOM_CHANNEL], withPresence: true });
+
+      // replay strokes from history so canvas is shared [web:171][web:174]
+      try {
+        const result = await pubnub.history({
+          channel: ROOM_CHANNEL,
+          count: 200,
+          stringifiedTimeToken: true
+        });
+        const messages = result.messages || [];
+        messages.forEach(item => {
+          const msg = item.entry || item.message || {};
+          if (msg.type === "clear") {
+            clearDrawCanvas();
+          } else if (msg.type === "stroke") {
+            drawSegment(msg, true);
+          }
+        });
+      } catch (e) {
+        console.log("Room history error", e);
+      }
+
       pubnub.publish({ channel: ROOM_CHANNEL, message: { type: "join", username, color: myColor } });
       addChatMessage("System", username + " joined room " + roomName, true);
+      info.textContent = "Connected to room.";
     }
 
     function leaveRoom() {
@@ -624,10 +600,10 @@
       appScreen.style.display = "none";
       lobbyScreen.style.display = "flex";
       info.textContent = "In lobby. Choose or create a room.";
-      resetGameState();
     }
     backToLobbyBtn.addEventListener("click", leaveRoom);
 
+    // Chat
     function addChatMessage(user, text, isSystem = false, color = "#f5f5f5") {
       const div = document.createElement("div");
       div.className = "chatMessage";
@@ -643,19 +619,22 @@
         textSpan.textContent = text;
         div.appendChild(nameSpan);
         div.appendChild(textSpan);
+
+        const id = pubnub.getUUID();
+        onlineUsers[id] = { username: user, color };
+        renderOnlineList();
       }
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
-      // track "online" by activity (fallback)
-      const id = pubnub.getUUID();
-      onlineUsers[id] = { username: user, color };
-      renderOnlineList();
     }
     function sendChat() {
       const msg = chatInput.value.trim();
       if (!msg || !username || !ROOM_CHANNEL) return;
       chatInput.value = "";
-      pubnub.publish({ channel: ROOM_CHANNEL, message: { type: "chat", username, color: myColor, text: msg } });
+      pubnub.publish({
+        channel: ROOM_CHANNEL,
+        message: { type: "chat", username, color: myColor, text: msg }
+      });
       addChatMessage(username, msg, false, myColor);
     }
     sendChatBtn.addEventListener("click", sendChat);
@@ -678,11 +657,11 @@
       });
     }
 
+    // Drawing helpers
     function randomNiceColor() {
       const colors = ["#ff4757", "#1e90ff", "#2ed573", "#ffa502", "#e84393", "#00cec9", "#fd79a8", "#6c5ce7", "#00b894"];
       return colors[Math.floor(Math.random() * colors.length)];
     }
-
     function clearDrawCanvas() {
       drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     }
@@ -707,19 +686,23 @@
       drawCtx.restore();
 
       if (!fromRemote && ROOM_CHANNEL) {
-        pubnub.publish({ channel: ROOM_CHANNEL, message: {
-          type: "stroke",
-          x: data.x,
-          y: data.y,
-          lastX: data.lastX,
-          lastY: data.lastY,
-          color: data.color,
-          size: data.size,
-          tool: data.tool
-        }});
+        pubnub.publish({
+          channel: ROOM_CHANNEL,
+          message: {
+            type: "stroke",
+            x: data.x,
+            y: data.y,
+            lastX: data.lastX,
+            lastY: data.lastY,
+            color: data.color,
+            size: data.size,
+            tool: data.tool
+          }
+        });
       }
     }
 
+    // Cursors
     function drawCursors() {
       clearCursorCanvas();
       const now = Date.now();
@@ -752,12 +735,14 @@
       if (!ROOM_CHANNEL) return;
       const id = pubnub.getUUID();
       cursors[id] = { x, y, username, color: myColor, size: currentSize, lastSeen: Date.now() };
-      pubnub.publish({ channel: ROOM_CHANNEL, message: {
-        type: "cursor", x, y, username, color: myColor, size: currentSize
-      }});
+      pubnub.publish({
+        channel: ROOM_CHANNEL,
+        message: { type: "cursor", x, y, username, color: myColor, size: currentSize }
+      });
       drawCursors();
     }
 
+    // Emoji
     function spawnFloatingEmoji(emoji) {
       const el = document.createElement("div");
       el.className = "floating-emoji";
@@ -778,6 +763,7 @@
       });
     });
 
+    // Tools
     colorPicker.addEventListener("input", () => {
       currentColor = colorPicker.value;
       if (currentTool === "pen") drawCtx.strokeStyle = currentColor;
@@ -816,19 +802,28 @@
       document.body.removeChild(link);
     });
 
+    // Canvas events
     drawCanvas.addEventListener("mousedown", e => {
       if (!username || !ROOM_CHANNEL) return;
       isDrawing = true;
       const pos = getOffsetPos(e);
-      lastX = pos.x; lastY = pos.y;
+      lastX = pos.x;
+      lastY = pos.y;
     });
     drawCanvas.addEventListener("mousemove", e => {
       if (!username || !ROOM_CHANNEL) return;
       const pos = getOffsetPos(e);
       updateLocalCursor(pos.x, pos.y);
       if (!isDrawing) return;
-      drawSegment({ x: pos.x, y: pos.y, lastX, lastY, color: currentColor, size: currentSize, tool: currentTool });
-      lastX = pos.x; lastY = pos.y;
+      drawSegment({
+        x: pos.x, y: pos.y,
+        lastX, lastY,
+        color: currentColor,
+        size: currentSize,
+        tool: currentTool
+      });
+      lastX = pos.x;
+      lastY = pos.y;
     });
     ["mouseup","mouseleave"].forEach(ev =>
       drawCanvas.addEventListener(ev, () => { isDrawing = false; })
@@ -849,229 +844,34 @@
       const pos = getOffsetPos(touch);
       updateLocalCursor(pos.x, pos.y);
       if (!isDrawing) return;
-      drawSegment({ x: pos.x, y: pos.y, lastX, lastY, color: currentColor, size: currentSize, tool: currentTool });
-      lastX = pos.x; lastY = pos.y;
+      drawSegment({
+        x: pos.x, y: pos.y,
+        lastX, lastY,
+        color: currentColor,
+        size: currentSize,
+        tool: currentTool
+      });
+      lastX = pos.x;
+      lastY = pos.y;
     }, { passive:false });
     drawCanvas.addEventListener("touchend", () => { isDrawing = false; });
 
-    // ===== GAME =====
-    function resetGameState() {
-      gamePhase = "free";
-      turnIndex = 0;
-      playersOrdered = [];
-      chains = {};
-      stepsSubmitted = {};
-      updateGameUI();
-    }
-    function updateGameUI() {
-      promptInput.style.display = "none";
-      guessInput.style.display = "none";
-      submitStepBtn.style.display = "none";
-      promptInput.value = "";
-      guessInput.value = "";
-
-      if (gamePhase === "free") {
-        phaseLabel.textContent = "Phase: Free draw";
-        gameHint.textContent = "Anyone can click 'Start Mini Gartic Game'.";
-      } else if (gamePhase === "prompt") {
-        phaseLabel.textContent = "Phase: Write prompts";
-        gameHint.textContent = "Type a funny prompt. Everyone writes one.";
-        promptInput.style.display = "block";
-        submitStepBtn.style.display = "block";
-        submitStepBtn.textContent = "Submit prompt";
-      } else if (gamePhase === "draw") {
-        phaseLabel.textContent = "Phase: Draw";
-        gameHint.textContent = "Draw the prompt assigned to you (conceptually).";
-        submitStepBtn.style.display = "block";
-        submitStepBtn.textContent = "Submit drawing";
-      } else if (gamePhase === "guess") {
-        phaseLabel.textContent = "Phase: Guess";
-        gameHint.textContent = "Guess what this drawing is.";
-        guessInput.style.display = "block";
-        submitStepBtn.style.display = "block";
-        submitStepBtn.textContent = "Submit guess";
-      } else if (gamePhase === "reveal") {
-        phaseLabel.textContent = "Phase: Replay";
-        gameHint.textContent = "Viewing the chains.";
-      }
-    }
-
-    startGameBtn.addEventListener("click", () => {
-      if (!ROOM_CHANNEL) return;
-      // build players from recent onlineUsers snapshot (fallback)
-      playersOrdered = Object.values(onlineUsers)
-        .map(u => u.username)
-        .filter(Boolean);
-      if (playersOrdered.length < 2) {
-        addChatMessage("System", "Need at least 2 players to start the game.", true);
-        return;
-      }
-      chains = {};
-      playersOrdered.forEach(name => { chains[name] = []; });
-      stepsSubmitted = {};
-      gamePhase = "prompt";
-      turnIndex = 0;
-      pubnub.publish({ channel: ROOM_CHANNEL, message: {
-        type: "game-phase-change",
-        phase: gamePhase,
-        turnIndex,
-        playersOrdered
-      }});
-      updateGameUI();
-    });
-
-    submitStepBtn.addEventListener("click", () => {
-      if (!ROOM_CHANNEL || gamePhase==="free" || gamePhase==="reveal") return;
-      if (stepsSubmitted[username]) return;
-
-      if (gamePhase === "prompt") {
-        const text = promptInput.value.trim();
-        if (!text) return;
-        stepsSubmitted[username] = true;
-        pubnub.publish({ channel: ROOM_CHANNEL, message: {
-          type: "game-step",
-          stepType: "prompt",
-          chainOwner: username,
-          fromUser: username,
-          text
-        }});
-      } else if (gamePhase === "draw") {
-        const dataUrl = drawCanvas.toDataURL("image/png");
-        const chainOwner = getAssignedChainOwnerForCurrentStep(username);
-        if (!chainOwner) return;
-        stepsSubmitted[username] = true;
-        pubnub.publish({ channel: ROOM_CHANNEL, message: {
-          type: "game-step",
-          stepType: "drawing",
-          chainOwner,
-          fromUser: username,
-          image: dataUrl
-        }});
-      } else if (gamePhase === "guess") {
-        const text = guessInput.value.trim();
-        const chainOwner = getAssignedChainOwnerForCurrentStep(username);
-        if (!text || !chainOwner) return;
-        stepsSubmitted[username] = true;
-        pubnub.publish({ channel: ROOM_CHANNEL, message: {
-          type: "game-step",
-          stepType: "guess",
-          chainOwner,
-          fromUser: username,
-          text
-        }});
-      }
-      updateGameUI();
-    });
-
-    function getAssignedChainOwnerForCurrentStep(playerName) {
-      if (!playersOrdered.length) return null;
-      const idx = playersOrdered.indexOf(playerName);
-      if (idx === -1) return null;
-      const shift = turnIndex; // 1 => +1, 2 => +2
-      const ownerIndex = (idx + shift) % playersOrdered.length;
-      return playersOrdered[ownerIndex];
-    }
-
-    function maybeAdvancePhase() {
-      const allSubmitted = playersOrdered.every(p => stepsSubmitted[p]);
-      if (!allSubmitted) return;
-
-      if (gamePhase === "prompt") {
-        gamePhase = "draw";
-        turnIndex = 1;
-        stepsSubmitted = {};
-        pubnub.publish({ channel: ROOM_CHANNEL, message: {
-          type: "game-phase-change",
-          phase: gamePhase,
-          turnIndex,
-          playersOrdered
-        }});
-        pubnub.publish({ channel: ROOM_CHANNEL, message: { type: "clear" } });
-      } else if (gamePhase === "draw") {
-        gamePhase = "guess";
-        turnIndex = 2;
-        stepsSubmitted = {};
-        pubnub.publish({ channel: ROOM_CHANNEL, message: {
-          type: "game-phase-change",
-          phase: gamePhase,
-          turnIndex,
-          playersOrdered
-        }});
-        pubnub.publish({ channel: ROOM_CHANNEL, message: { type: "clear" } });
-      } else if (gamePhase === "guess") {
-        gamePhase = "reveal";
-        turnIndex = 3;
-        stepsSubmitted = {};
-        pubnub.publish({ channel: ROOM_CHANNEL, message: {
-          type: "game-phase-change",
-          phase: gamePhase,
-          turnIndex,
-          playersOrdered,
-          chains
-        }});
-      }
-    }
-
-    function showReplay(receivedChains) {
-      replayContent.innerHTML = "";
-      const owners = Object.keys(receivedChains || {});
-      if (!owners.length) {
-        const p = document.createElement("p");
-        p.textContent = "No chains to show.";
-        replayContent.appendChild(p);
-      } else {
-        owners.forEach(owner => {
-          const chainDiv = document.createElement("div");
-          chainDiv.className = "replayChain";
-          const title = document.createElement("div");
-          title.textContent = "Chain of " + owner;
-          title.style.fontWeight = "bold";
-          chainDiv.appendChild(title);
-          (receivedChains[owner] || []).forEach(step => {
-            if (step.type === "prompt") {
-              const d = document.createElement("div");
-              d.className = "replayStepPrompt";
-              d.textContent = "Prompt ("+step.fromUser+"): " + step.text;
-              chainDiv.appendChild(d);
-            } else if (step.type === "guess") {
-              const d = document.createElement("div");
-              d.className = "replayStepGuess";
-              d.textContent = "Guess ("+step.fromUser+"): " + step.text;
-              chainDiv.appendChild(d);
-            } else if (step.type === "drawing") {
-              const img = document.createElement("img");
-              img.className = "replayImage";
-              img.src = step.image;
-              img.alt = "Drawing by " + step.fromUser;
-              chainDiv.appendChild(img);
-            }
-          });
-          replayContent.appendChild(chainDiv);
-        });
-      }
-      replayOverlay.style.display = "flex";
-      gamePhase = "reveal";
-      updateGameUI();
-    }
-    closeReplayBtn.addEventListener("click", () => {
-      replayOverlay.style.display = "none";
-      gamePhase = "free";
-      turnIndex = 0;
-      updateGameUI();
-    });
-
+    // PubNub listener
     pubnub.addListener({
       message: (event) => {
         const msg = event.message;
+
         if (event.channel === LOBBY_CHANNEL) {
           if (msg.type === "room-create" && msg.room) {
-            if (!rooms[msg.room]) {
-              rooms[msg.room] = { createdBy: msg.createdBy || "someone", createdAt: Date.now() };
-              renderRoomList();
-            }
+            rooms[msg.room] = { createdBy: msg.createdBy || "someone", createdAt: Date.now() };
+            renderRoomList();
+          } else if (msg.type === "room-delete" && msg.room) {
+            delete rooms[msg.room];
+            renderRoomList();
           }
           return;
         }
+
         if (ROOM_CHANNEL && event.channel === ROOM_CHANNEL) {
           if (msg.type === "stroke") {
             drawSegment(msg, true);
@@ -1097,29 +897,10 @@
             }
           } else if (msg.type === "reaction") {
             spawnFloatingEmoji(msg.emoji || "✨");
-          } else if (msg.type === "game-phase-change") {
-            gamePhase = msg.phase;
-            turnIndex = msg.turnIndex || 0;
-            playersOrdered = msg.playersOrdered || playersOrdered;
-            if (msg.chains) chains = msg.chains;
-            stepsSubmitted = {};
-            updateGameUI();
-            if (gamePhase === "reveal") showReplay(chains);
-          } else if (msg.type === "game-step") {
-            if (!chains[msg.chainOwner]) chains[msg.chainOwner] = [];
-            chains[msg.chainOwner].push({
-              type: msg.stepType,
-              text: msg.text,
-              image: msg.image,
-              fromUser: msg.fromUser
-            });
-            stepsSubmitted[msg.fromUser] = true;
-            maybeAdvancePhase();
           }
         }
       },
       presence: (event) => {
-        // Best-effort presence, not required for game
         if (!ROOM_CHANNEL || event.channel !== ROOM_CHANNEL) return;
         const uuid = event.uuid;
         if (event.action === "join" || event.action === "state-change") {
