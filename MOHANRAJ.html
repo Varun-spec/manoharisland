@@ -11,7 +11,6 @@
       text-align: center;
       background: #1f1f1f;
       color: #f5f5f5;
-      overflow: hidden;
     }
     h1 {
       margin-top: 10px;
@@ -27,11 +26,23 @@
     #topbar > * {
       margin: 2px;
     }
-    canvas {
+    #canvasWrapper {
+      position: relative;
+      display: inline-block;
+    }
+    #drawCanvas, #cursorCanvas {
       border: 2px solid #555;
       background: #ffffff;
       border-radius: 4px;
       touch-action: none;
+      display: block;
+    }
+    #cursorCanvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      pointer-events: none; /* so mouse events hit drawCanvas */
+      background: transparent;
     }
     button {
       padding: 6px 12px;
@@ -109,6 +120,7 @@
   </style>
 </head>
 <body>
+  <!-- Username overlay -->
   <div id="loginOverlay">
     <div id="loginBox">
       <h2>Join the canvas</h2>
@@ -138,7 +150,11 @@
     <button id="eraseAllBtn">Erase All</button>
   </div>
 
-  <canvas id="canvas" width="900" height="520"></canvas>
+  <div id="canvasWrapper">
+    <canvas id="drawCanvas" width="900" height="520"></canvas>
+    <canvas id="cursorCanvas" width="900" height="520"></canvas>
+  </div>
+
   <div id="info">Enter a username to start.</div>
 
   <!-- PubNub realtime library -->
@@ -151,11 +167,14 @@
       uuid: "temp_" + Math.floor(Math.random() * 1e9)
     });
 
-    const channel = "joint-drawing-canvas-v3";
+    const channel = "joint-drawing-canvas-v4";
 
     // ====== DOM REFERENCES ======
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+    const drawCanvas = document.getElementById("drawCanvas");
+    const drawCtx = drawCanvas.getContext("2d");
+
+    const cursorCanvas = document.getElementById("cursorCanvas");
+    const cursorCtx = cursorCanvas.getContext("2d");
 
     const colorPicker = document.getElementById("colorPicker");
     const brushSize = document.getElementById("brushSize");
@@ -180,13 +199,13 @@
 
     let username = null;
     let myColor = randomNiceColor();
-    let cursors = {}; // uuid -> { x, y, username, color, lastSeen }
+    let cursors = {}; // id -> { x, y, username, color, lastSeen }
 
     // Brush defaults
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.strokeStyle = currentColor;
-    ctx.lineWidth = currentSize;
+    drawCtx.lineJoin = "round";
+    drawCtx.lineCap = "round";
+    drawCtx.strokeStyle = currentColor;
+    drawCtx.lineWidth = currentSize;
 
     // ====== LOGIN / USERNAME ======
     function joinWithName() {
@@ -194,10 +213,9 @@
       if (!name) return;
       username = name;
       pubnub.setUUID("user_" + name + "_" + Math.floor(Math.random() * 1e5));
-      userLabel.textContent = "You are: " + name;
+      userLabel.textContent = "You are: " + name + " (cursor color: " + myColor + ")";
       loginOverlay.style.display = "none";
       info.textContent = "Connected! Share this page URL with friends.";
-      // broadcast presence / color
       sendMessage({ type: "join", username: name, color: myColor });
     }
 
@@ -210,43 +228,46 @@
     colorPicker.addEventListener("input", () => {
       currentColor = colorPicker.value;
       if (currentTool === "pen") {
-        ctx.strokeStyle = currentColor;
+        drawCtx.strokeStyle = currentColor;
       }
     });
 
     brushSize.addEventListener("input", () => {
       currentSize = parseInt(brushSize.value, 10);
       brushSizeValue.textContent = currentSize;
-      ctx.lineWidth = currentSize;
+      drawCtx.lineWidth = currentSize;
     });
 
     penBtn.addEventListener("click", () => {
       currentTool = "pen";
-      ctx.strokeStyle = currentColor;
+      drawCtx.strokeStyle = currentColor;
       penBtn.classList.add("active");
       eraserBtn.classList.remove("active");
     });
 
     eraserBtn.addEventListener("click", () => {
       currentTool = "eraser";
-      ctx.strokeStyle = "#ffffff";
+      drawCtx.strokeStyle = "#ffffff";
       penBtn.classList.remove("active");
       eraserBtn.classList.add("active");
     });
 
     eraseAllBtn.addEventListener("click", () => {
-      clearCanvas();
-      // Broadcast clear to everyone
+      clearDrawCanvas();
       sendMessage({ type: "clear" });
     });
 
     // ====== HELPERS ======
-    function clearCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function clearDrawCanvas() {
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
+
+    function clearCursorCanvas() {
+      cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
     }
 
     function getOffsetPos(e) {
-      const rect = canvas.getBoundingClientRect();
+      const rect = drawCanvas.getBoundingClientRect();
       return {
         x: e.clientX - rect.left,
         y: e.clientY - rect.top
@@ -258,19 +279,19 @@
       return colors[Math.floor(Math.random() * colors.length)];
     }
 
-    // ====== DRAWING SEGMENTS ======
+    // ====== DRAWING SEGMENTS (only on drawCanvas) ======
     function drawSegment(data, fromRemote = false) {
-      ctx.save();
-      ctx.lineWidth = data.size;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = data.tool === "eraser" ? "#ffffff" : data.color;
+      drawCtx.save();
+      drawCtx.lineWidth = data.size;
+      drawCtx.lineCap = "round";
+      drawCtx.lineJoin = "round";
+      drawCtx.strokeStyle = data.tool === "eraser" ? "#ffffff" : data.color;
 
-      ctx.beginPath();
-      ctx.moveTo(data.lastX, data.lastY);
-      ctx.lineTo(data.x, data.y);
-      ctx.stroke();
-      ctx.restore();
+      drawCtx.beginPath();
+      drawCtx.moveTo(data.lastX, data.lastY);
+      drawCtx.lineTo(data.x, data.y);
+      drawCtx.stroke();
+      drawCtx.restore();
 
       if (!fromRemote) {
         sendMessage({
@@ -286,9 +307,11 @@
       }
     }
 
-    // ====== CURSOR DRAWING (OVERLAY) ======
+    // ====== CURSOR DRAWING (only on cursorCanvas) ======
     function drawCursors() {
+      clearCursorCanvas();
       const now = Date.now();
+
       Object.keys(cursors).forEach((id) => {
         const c = cursors[id];
         if (now - c.lastSeen > 8000) {
@@ -300,72 +323,53 @@
         const y = c.y;
 
         // cursor circle
-        ctx.save();
-        ctx.beginPath();
-        ctx.strokeStyle = c.color;
-        ctx.lineWidth = 1.5;
-        ctx.arc(x, y, 6, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
+        cursorCtx.save();
+        cursorCtx.beginPath();
+        cursorCtx.strokeStyle = c.color;
+        cursorCtx.lineWidth = 1.5;
+        cursorCtx.arc(x, y, 6, 0, Math.PI * 2);
+        cursorCtx.stroke();
+        cursorCtx.restore();
 
         // username label
-        ctx.save();
-        ctx.font = "12px sans-serif";
-        ctx.fillStyle = c.color;
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 3;
-        ctx.textBaseline = "top";
+        cursorCtx.save();
+        cursorCtx.font = "12px sans-serif";
+        cursorCtx.fillStyle = c.color;
+        cursorCtx.strokeStyle = "#ffffff";
+        cursorCtx.lineWidth = 3;
+        cursorCtx.textBaseline = "top";
 
         const text = c.username || "Player";
-        const padding = 2;
-        const textWidth = ctx.measureText(text).width;
 
-        // white outline
-        ctx.strokeText(text, x + 10, y + 8);
-        // colored text
-        ctx.fillText(text, x + 10, y + 8);
-        ctx.restore();
+        cursorCtx.strokeText(text, x + 10, y + 8);
+        cursorCtx.fillText(text, x + 10, y + 8);
+        cursorCtx.restore();
       });
     }
 
-    // ====== RENDER LOOP (for cursors) ======
-    function render() {
-      // We only redraw cursors on top each frame.
-      // To avoid re-drawing entire canvas, we use a trick:
-      // 1) Save current canvas as image, 2) clear, 3) redraw image + cursors.
-      // But that is too heavy for this simple demo.
-      // Simpler: keep strokes as-is, and draw cursors in "xor" style? Also heavy.
-      // For small rooms, easiest is just redraw cursors by temporarily drawing over.
-      // Here we take a simpler approach: cursors are drawn *on top* after strokes,
-      // they will slightly accumulate but it's fine for a basic game.
-      // To prevent heavy ghosting, we can clear and redraw only the cursor layer,
-      // but we don't have a separate layer here, so we do a cheap hack:
-      // - clear a small area around each old cursor first (not tracked easily).
-      // For this demo, we just redraw cursors every 100ms and accept minimal artifacts.
+    function updateLocalCursor(x, y) {
+      const id = pubnub.getUUID();
+      cursors[id] = {
+        x,
+        y,
+        username,
+        color: myColor,
+        lastSeen: Date.now()
+      };
 
-      // To minimize artifacts, we do nothing here; instead, we redraw cursors
-      // only when canvas changes (mouse move / remote cursor).
-      // So render loop is not needed; we leave it empty on purpose.
+      sendMessage({
+        type: "cursor",
+        x,
+        y,
+        username,
+        color: myColor
+      });
 
-      requestAnimationFrame(render);
-    }
-    requestAnimationFrame(render);
-
-    // Helper to update cursor data and redraw cursors "fresh" by
-    // saving the canvas, clearing, and restoring (simple version).
-    function updateAndRedrawCursors() {
-      // Take a snapshot
-      const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      // Clear
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Put back strokes
-      ctx.putImageData(snapshot, 0, 0);
-      // Draw cursors on top
       drawCursors();
     }
 
     // ====== MOUSE EVENTS ======
-    canvas.addEventListener("mousedown", (e) => {
+    drawCanvas.addEventListener("mousedown", (e) => {
       if (!username) return;
       isDrawing = true;
       const pos = getOffsetPos(e);
@@ -373,11 +377,10 @@
       lastY = pos.y;
     });
 
-    canvas.addEventListener("mousemove", (e) => {
+    drawCanvas.addEventListener("mousemove", (e) => {
       if (!username) return;
       const pos = getOffsetPos(e);
 
-      // Update own cursor & broadcast
       updateLocalCursor(pos.x, pos.y);
 
       if (!isDrawing) return;
@@ -397,11 +400,11 @@
     });
 
     ["mouseup", "mouseleave"].forEach(ev =>
-      canvas.addEventListener(ev, () => { isDrawing = false; })
+      drawCanvas.addEventListener(ev, () => { isDrawing = false; })
     );
 
     // ====== TOUCH SUPPORT ======
-    canvas.addEventListener("touchstart", (e) => {
+    drawCanvas.addEventListener("touchstart", (e) => {
       if (!username) return;
       e.preventDefault();
       isDrawing = true;
@@ -412,7 +415,7 @@
       updateLocalCursor(pos.x, pos.y);
     }, { passive: false });
 
-    canvas.addEventListener("touchmove", (e) => {
+    drawCanvas.addEventListener("touchmove", (e) => {
       if (!username) return;
       e.preventDefault();
       const touch = e.touches[0];
@@ -436,31 +439,9 @@
       lastY = pos.y;
     }, { passive: false });
 
-    canvas.addEventListener("touchend", () => {
+    drawCanvas.addEventListener("touchend", () => {
       isDrawing = false;
     });
-
-    // ====== CURSOR NETWORKING ======
-    function updateLocalCursor(x, y) {
-      const id = pubnub.getUUID();
-      cursors[id] = {
-        x,
-        y,
-        username,
-        color: myColor,
-        lastSeen: Date.now()
-      };
-
-      sendMessage({
-        type: "cursor",
-        x,
-        y,
-        username,
-        color: myColor
-      });
-
-      updateAndRedrawCursors();
-    }
 
     // ====== PUBNUB ======
     function sendMessage(msg) {
@@ -476,10 +457,8 @@
 
         if (msg.type === "stroke") {
           drawSegment(msg, true);
-          updateAndRedrawCursors();
         } else if (msg.type === "clear") {
-          clearCanvas();
-          updateAndRedrawCursors();
+          clearDrawCanvas();
         } else if (msg.type === "cursor") {
           const id = event.publisher || event.timetoken || "remote";
           cursors[id] = {
@@ -489,15 +468,15 @@
             color: msg.color || "#ff4757",
             lastSeen: Date.now()
           };
-          updateAndRedrawCursors();
-        } else if (msg.type === "join") {
-          // Could show join notification in future
+          drawCursors();
         }
       },
       status: (s) => {
         if (s.category === "PNConnectedCategory") {
           if (!username) {
             info.textContent = "Enter a username to start.";
+          } else {
+            info.textContent = "Connected! Share this page URL with friends.";
           }
         }
       }
