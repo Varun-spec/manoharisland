@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Varuns diddy drawing</title>
+  <title>Joint Drawing Canvas</title>
   <style>
     body {
       margin: 0;
@@ -11,6 +11,7 @@
       text-align: center;
       background: #1f1f1f;
       color: #f5f5f5;
+      overflow: hidden;
     }
     h1 {
       margin-top: 10px;
@@ -29,8 +30,8 @@
     canvas {
       border: 2px solid #555;
       background: #ffffff;
-      cursor: crosshair;
       border-radius: 4px;
+      touch-action: none;
     }
     button {
       padding: 6px 12px;
@@ -67,11 +68,58 @@
       font-size: 13px;
       color: #ccc;
     }
+    #loginOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    #loginBox {
+      background: #222;
+      padding: 20px 24px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
+      max-width: 300px;
+      width: 90%;
+    }
+    #loginBox h2 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    #usernameInput {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #555;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    #loginBox button {
+      width: 100%;
+      margin-top: 4px;
+    }
+    #userLabel {
+      font-size: 13px;
+      opacity: 0.85;
+    }
   </style>
 </head>
 <body>
-  <h1>Diddy Drawings</h1>
-  <p>Very high tech and good design software by varun</p>
+  <div id="loginOverlay">
+    <div id="loginBox">
+      <h2>Join the canvas</h2>
+      <p>Enter a username so others can see you:</p>
+      <input id="usernameInput" type="text" placeholder="e.g. Aryan" maxlength="20">
+      <button id="joinBtn">Join</button>
+    </div>
+  </div>
+
+  <h1>Joint Drawing Canvas</h1>
+  <p id="userLabel"></p>
 
   <div id="topbar">
     <label>
@@ -90,20 +138,20 @@
     <button id="eraseAllBtn">Erase All</button>
   </div>
 
-  <canvas id="canvas" width="800" height="500"></canvas>
-  <div id="info">Connecting…</div>
+  <canvas id="canvas" width="900" height="520"></canvas>
+  <div id="info">Enter a username to start.</div>
 
   <!-- PubNub realtime library -->
   <script src="https://cdn.jsdelivr.net/npm/pubnub@7.5.0/dist/web/pubnub.min.js"></script>
   <script>
     // ====== CONFIG: put your PubNub keys here ======
     const pubnub = new PubNub({
-      publishKey:   "pub-c-fc766aca-9661-4f55-bc9a-667c55e2b5c1",   // TODO: replace
-      subscribeKey: "sub-c-1dd042db-ecfa-47ad-8d2c-4ecb39394c0b",   // TODO: replace
-      uuid: "player_" + Math.floor(Math.random() * 1e9)
+      publishKey:   "YOUR_PUB_KEY_HERE",   // TODO: replace
+      subscribeKey: "YOUR_SUB_KEY_HERE",   // TODO: replace
+      uuid: "temp_" + Math.floor(Math.random() * 1e9)
     });
 
-    const channel = "joint-drawing-canvas-v2";
+    const channel = "joint-drawing-canvas-v3";
 
     // ====== DOM REFERENCES ======
     const canvas = document.getElementById("canvas");
@@ -116,6 +164,11 @@
     const eraserBtn = document.getElementById("eraserBtn");
     const eraseAllBtn = document.getElementById("eraseAllBtn");
     const info = document.getElementById("info");
+    const userLabel = document.getElementById("userLabel");
+
+    const loginOverlay = document.getElementById("loginOverlay");
+    const usernameInput = document.getElementById("usernameInput");
+    const joinBtn = document.getElementById("joinBtn");
 
     // ====== STATE ======
     let isDrawing = false;
@@ -125,11 +178,33 @@
     let currentSize = parseInt(brushSize.value, 10);
     let currentTool = "pen"; // "pen" or "eraser"
 
-    // Default brush settings
+    let username = null;
+    let myColor = randomNiceColor();
+    let cursors = {}; // uuid -> { x, y, username, color, lastSeen }
+
+    // Brush defaults
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.strokeStyle = currentColor;
     ctx.lineWidth = currentSize;
+
+    // ====== LOGIN / USERNAME ======
+    function joinWithName() {
+      const name = usernameInput.value.trim();
+      if (!name) return;
+      username = name;
+      pubnub.setUUID("user_" + name + "_" + Math.floor(Math.random() * 1e5));
+      userLabel.textContent = "You are: " + name;
+      loginOverlay.style.display = "none";
+      info.textContent = "Connected! Share this page URL with friends.";
+      // broadcast presence / color
+      sendMessage({ type: "join", username: name, color: myColor });
+    }
+
+    joinBtn.addEventListener("click", joinWithName);
+    usernameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") joinWithName();
+    });
 
     // ====== UI HANDLERS ======
     colorPicker.addEventListener("input", () => {
@@ -154,7 +229,6 @@
 
     eraserBtn.addEventListener("click", () => {
       currentTool = "eraser";
-      // Eraser just draws with white (canvas background)
       ctx.strokeStyle = "#ffffff";
       penBtn.classList.remove("active");
       eraserBtn.classList.add("active");
@@ -166,11 +240,25 @@
       sendMessage({ type: "clear" });
     });
 
-    // ====== CANVAS DRAW HELPERS ======
+    // ====== HELPERS ======
     function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
+    function getOffsetPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+
+    function randomNiceColor() {
+      const colors = ["#ff4757", "#1e90ff", "#2ed573", "#ffa502", "#e84393", "#00cec9", "#fd79a8", "#6c5ce7", "#00b894"];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    // ====== DRAWING SEGMENTS ======
     function drawSegment(data, fromRemote = false) {
       ctx.save();
       ctx.lineWidth = data.size;
@@ -185,7 +273,6 @@
       ctx.restore();
 
       if (!fromRemote) {
-        // Only send when this stroke originated locally
         sendMessage({
           type: "stroke",
           x: data.x,
@@ -199,16 +286,87 @@
       }
     }
 
-    function getOffsetPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
+    // ====== CURSOR DRAWING (OVERLAY) ======
+    function drawCursors() {
+      const now = Date.now();
+      Object.keys(cursors).forEach((id) => {
+        const c = cursors[id];
+        if (now - c.lastSeen > 8000) {
+          delete cursors[id];
+          return;
+        }
+
+        const x = c.x;
+        const y = c.y;
+
+        // cursor circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = c.color;
+        ctx.lineWidth = 1.5;
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // username label
+        ctx.save();
+        ctx.font = "12px sans-serif";
+        ctx.fillStyle = c.color;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.textBaseline = "top";
+
+        const text = c.username || "Player";
+        const padding = 2;
+        const textWidth = ctx.measureText(text).width;
+
+        // white outline
+        ctx.strokeText(text, x + 10, y + 8);
+        // colored text
+        ctx.fillText(text, x + 10, y + 8);
+        ctx.restore();
+      });
+    }
+
+    // ====== RENDER LOOP (for cursors) ======
+    function render() {
+      // We only redraw cursors on top each frame.
+      // To avoid re-drawing entire canvas, we use a trick:
+      // 1) Save current canvas as image, 2) clear, 3) redraw image + cursors.
+      // But that is too heavy for this simple demo.
+      // Simpler: keep strokes as-is, and draw cursors in "xor" style? Also heavy.
+      // For small rooms, easiest is just redraw cursors by temporarily drawing over.
+      // Here we take a simpler approach: cursors are drawn *on top* after strokes,
+      // they will slightly accumulate but it's fine for a basic game.
+      // To prevent heavy ghosting, we can clear and redraw only the cursor layer,
+      // but we don't have a separate layer here, so we do a cheap hack:
+      // - clear a small area around each old cursor first (not tracked easily).
+      // For this demo, we just redraw cursors every 100ms and accept minimal artifacts.
+
+      // To minimize artifacts, we do nothing here; instead, we redraw cursors
+      // only when canvas changes (mouse move / remote cursor).
+      // So render loop is not needed; we leave it empty on purpose.
+
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+
+    // Helper to update cursor data and redraw cursors "fresh" by
+    // saving the canvas, clearing, and restoring (simple version).
+    function updateAndRedrawCursors() {
+      // Take a snapshot
+      const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      // Clear
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Put back strokes
+      ctx.putImageData(snapshot, 0, 0);
+      // Draw cursors on top
+      drawCursors();
     }
 
     // ====== MOUSE EVENTS ======
     canvas.addEventListener("mousedown", (e) => {
+      if (!username) return;
       isDrawing = true;
       const pos = getOffsetPos(e);
       lastX = pos.x;
@@ -216,8 +374,13 @@
     });
 
     canvas.addEventListener("mousemove", (e) => {
-      if (!isDrawing) return;
+      if (!username) return;
       const pos = getOffsetPos(e);
+
+      // Update own cursor & broadcast
+      updateLocalCursor(pos.x, pos.y);
+
+      if (!isDrawing) return;
 
       drawSegment({
         x: pos.x,
@@ -239,19 +402,25 @@
 
     // ====== TOUCH SUPPORT ======
     canvas.addEventListener("touchstart", (e) => {
+      if (!username) return;
       e.preventDefault();
       isDrawing = true;
       const touch = e.touches[0];
       const pos = getOffsetPos(touch);
       lastX = pos.x;
       lastY = pos.y;
+      updateLocalCursor(pos.x, pos.y);
     }, { passive: false });
 
     canvas.addEventListener("touchmove", (e) => {
+      if (!username) return;
       e.preventDefault();
-      if (!isDrawing) return;
       const touch = e.touches[0];
       const pos = getOffsetPos(touch);
+
+      updateLocalCursor(pos.x, pos.y);
+
+      if (!isDrawing) return;
 
       drawSegment({
         x: pos.x,
@@ -271,7 +440,29 @@
       isDrawing = false;
     });
 
-    // ====== PUBNUB: SEND / RECEIVE ======
+    // ====== CURSOR NETWORKING ======
+    function updateLocalCursor(x, y) {
+      const id = pubnub.getUUID();
+      cursors[id] = {
+        x,
+        y,
+        username,
+        color: myColor,
+        lastSeen: Date.now()
+      };
+
+      sendMessage({
+        type: "cursor",
+        x,
+        y,
+        username,
+        color: myColor
+      });
+
+      updateAndRedrawCursors();
+    }
+
+    // ====== PUBNUB ======
     function sendMessage(msg) {
       pubnub.publish({
         channel,
@@ -284,14 +475,30 @@
         const msg = event.message;
 
         if (msg.type === "stroke") {
-          drawSegment(msg, true); // fromRemote = true
+          drawSegment(msg, true);
+          updateAndRedrawCursors();
         } else if (msg.type === "clear") {
           clearCanvas();
+          updateAndRedrawCursors();
+        } else if (msg.type === "cursor") {
+          const id = event.publisher || event.timetoken || "remote";
+          cursors[id] = {
+            x: msg.x,
+            y: msg.y,
+            username: msg.username || "Player",
+            color: msg.color || "#ff4757",
+            lastSeen: Date.now()
+          };
+          updateAndRedrawCursors();
+        } else if (msg.type === "join") {
+          // Could show join notification in future
         }
       },
       status: (s) => {
         if (s.category === "PNConnectedCategory") {
-          info.textContent = "Connected! Share this page URL with friends.";
+          if (!username) {
+            info.textContent = "Enter a username to start.";
+          }
         }
       }
     });
