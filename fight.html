@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Diddy Arena
-  </title>
+  <title>Diddy Bust Fight</title>
   <script src="https://cdn.jsdelivr.net/npm/pubnub@7.5.0/dist/web/pubnub.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -15,6 +14,7 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
         "Segoe UI", sans-serif;
       color: #fdfdfd;
+      cursor: none;
     }
     #root {
       position: relative;
@@ -73,9 +73,7 @@
       outline: none;
       transition: border 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
     }
-    #usernameInput::placeholder {
-      color: #7075a5;
-    }
+    #usernameInput::placeholder { color: #7075a5; }
     #usernameInput:focus {
       border-color: #ff9f43;
       box-shadow: 0 0 0 1px rgba(255,159,67,0.7);
@@ -96,14 +94,6 @@
       cursor: pointer;
       box-shadow: 0 16px 38px rgba(0,0,0,0.9);
       transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
-    }
-    #joinBtn:hover {
-      filter: brightness(1.05);
-      box-shadow: 0 20px 55px rgba(0,0,0,1);
-    }
-    #joinBtn:active {
-      transform: translateY(1px) scale(0.99);
-      box-shadow: 0 12px 30px rgba(0,0,0,0.9);
     }
 
     #hud {
@@ -194,6 +184,38 @@
       transition: transform 0.15s ease;
     }
 
+    #rocketHUD {
+      margin-left: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+    #rocketBadge {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ffeaa7, #e17055);
+      box-shadow: 0 0 10px rgba(255,159,67,0.9);
+      position: relative;
+      filter: grayscale(0.6);
+    }
+    #rocketBadge::after {
+      content: "★";
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #2d1210;
+    }
+    #rocketText { color: #f5f6ff; }
+
     #leaderboard {
       position: absolute;
       left: 12px;
@@ -210,8 +232,8 @@
       border: 1px solid rgba(255,255,255,0.16);
       box-shadow: 0 18px 40px rgba(0,0,0,0.9);
       padding: 7px 10px 8px;
-      min-width: 170px;
-      max-width: 220px;
+      min-width: 180px;
+      max-width: 230px;
     }
     #leaderboardTitle {
       font-size: 11px;
@@ -220,20 +242,42 @@
       color: #ff9f43;
       margin-bottom: 4px;
     }
+    #leaderboardHeader {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #9fa3d6;
+      margin-bottom: 3px;
+    }
     .lb-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 2px 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .lb-row.self {
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding-inline: 4px;
+    }
+    .lb-rank {
+      width: 14px;
+      text-align: right;
+      margin-right: 4px;
+      color: #ff9f43;
     }
     .lb-name {
+      flex: 1;
       max-width: 100px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       color: #ffffff;
     }
-    .lb-score {
+    .lb-kd {
+      width: 48px;
+      text-align: right;
       color: #d0d4ff;
       font-variant-numeric: tabular-nums;
     }
@@ -279,6 +323,67 @@
       transition: opacity 0.25s ease;
       text-shadow: 0 0 10px rgba(0,0,0,0.8);
     }
+
+    #deathOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    #deathOverlay.visible {
+      pointer-events: auto;
+      opacity: 1;
+    }
+    #deathCard {
+      min-width: 260px;
+      padding: 20px 24px;
+      border-radius: 18px;
+      background: radial-gradient(circle at top, rgba(50,0,0,0.96), rgba(5,0,0,0.98));
+      border: 1px solid rgba(255,70,70,0.6);
+      box-shadow: 0 22px 55px rgba(0,0,0,0.95);
+      text-align: center;
+    }
+    #deathTitle {
+      font-size: 22px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #ff7675;
+      margin-bottom: 4px;
+    }
+    #deathSubtitle {
+      font-size: 12px;
+      color: #f1c5c5;
+      margin-bottom: 12px;
+    }
+    #respawnBtn {
+      margin-top: 4px;
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #00cec9, #ff9f43);
+      color: #05040a;
+      cursor: pointer;
+      box-shadow: 0 16px 38px rgba(0,0,0,0.9);
+    }
+
+    #rocketHint {
+      position: absolute;
+      bottom: 6px;
+      right: 16px;
+      font-size: 10px;
+      color: #c4c7ff;
+      opacity: 0.8;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -287,10 +392,10 @@
 
     <div id="overlayUI">
       <div id="loginOverlay">
-        <div id="title">Diddy Arena</div>
-        <div id="subtitle">Shoot drops of nuh at each toher</div>
+        <div id="title">Diddy Nut Battle</div>
+        <div id="subtitle">The ultimate war</div>
         <input id="usernameInput" type="text" maxlength="16" placeholder="username" />
-        <button id="joinBtn">Drop In</button>
+        <button id="joinBtn">Slip it In</button>
       </div>
     </div>
 
@@ -306,18 +411,37 @@
           <span id="dashLabel">Dash</span>
           <div id="dashBarOuter"><div id="dashBarInner"></div></div>
         </div>
+        <div id="rocketHUD">
+          <div id="rocketBadge"></div>
+          <div id="rocketText">Killstreak: 0 / 5</div>
+        </div>
       </div>
     </div>
 
     <div id="leaderboard">
       <div id="leaderboardCard">
-        <div id="leaderboardTitle">Lobby</div>
+        <div id="leaderboardTitle">Diddy Arena Battle</div>
+        <div id="leaderboardHeader">
+          <span style="width:18px;text-align:right;">#</span>
+          <span style="flex:1;margin-left:4px;">Player</span>
+          <span style="width:48px;text-align:right;">K / D</span>
+        </div>
         <div id="leaderboardBody"></div>
       </div>
     </div>
 
     <div id="killfeed"></div>
     <div id="hint">Match live</div>
+
+    <div id="deathOverlay">
+      <div id="deathCard">
+        <div id="deathTitle">You died faraz</div>
+        <div id="deathSubtitle">Click respawn uncle</div>
+        <button id="respawnBtn">Respawn</button>
+      </div>
+    </div>
+
+    <div id="rocketHint">BUST ROCKET CHARGED UP PRESS R AND CHOOSE TARGET</div>
   </div>
 
   <script>
@@ -348,6 +472,12 @@
     const killfeedEl = document.getElementById("killfeed");
     const hintEl = document.getElementById("hint");
 
+    const deathOverlay = document.getElementById("deathOverlay");
+    const respawnBtn = document.getElementById("respawnBtn");
+
+    const rocketBadge = document.getElementById("rocketBadge");
+    const rocketText = document.getElementById("rocketText");
+
     const PLAYER_SIZE = 24;
     const MAX_HEALTH = 100;
     const BULLET_SPEED = 7.5;
@@ -356,6 +486,14 @@
     const BULLET_RANGE = 380;
     const FIRE_COOLDOWN_MS = 160;
     const MAX_BULLETS_PER_PLAYER = 5;
+
+    const ROCKET_KILLS_REQUIRED = 5;
+    const ROCKET_SPEED_START = 2.2;
+    const ROCKET_SPEED_MAX = 13;
+    const ROCKET_ACCEL = 0.11;
+    const ROCKET_TURN_RATE = 0.14;
+    const ROCKET_DAMAGE = 80;
+    const ROCKET_HIT_RADIUS = 26;
 
     const ACCEL = 0.65;
     const FRICTION = 0.82;
@@ -378,13 +516,29 @@
 
     let players = {};
     let bullets = {};
+    let rockets = [];
+    let rocketSmoke = [];
+    let rocketExplosions = []; // new: shockwave circles
     let damagePopups = [];
+    let respawnParticles = [];
 
     const keys = { up:false, down:false, left:false, right:false, dash:false };
     let mouseX = canvas.width / 2;
     let mouseY = canvas.height / 2;
     let lastFireTime = 0;
     let lastStateSent = 0;
+
+    let killStreak = 0;
+    let rocketReady = false;
+    let rocketArmed = false;
+
+    let shakeTime = 0;
+    let shakeIntensity = 0;
+    let rocketFlashTime = 0;
+
+    // Desync guard for enemy HP
+    let recentlyDamaged = {};
+    const RECENT_DAMAGE_WINDOW = 300; // ms [web:373]
 
     function spawnPlayer(uuid, name, color) {
       const startX = Math.random() * (canvas.width - PLAYER_SIZE - 80) + 40;
@@ -430,6 +584,7 @@
       p.lerpStart = performance.now();
       p.lerpDuration = 0;
       p.lastSeen = performance.now();
+      spawnRespawnParticles(newX + PLAYER_SIZE/2, newY + PLAYER_SIZE/2);
     }
 
     function publishState() {
@@ -445,9 +600,9 @@
           x: me.x,
           y: me.y,
           color: me.color,
-          health: me.health,
           kills: me.kills,
-          deaths: me.deaths
+          deaths: me.deaths,
+          health: me.health
         }
       });
     }
@@ -464,69 +619,136 @@
       entry.className = "killfeed-entry";
       entry.innerHTML = `<span class="killfeed-killer">${killerName}</span> → <span class="killfeed-victim">${victimName}</span>`;
       killfeedEl.appendChild(entry);
-
       setTimeout(() => {
         entry.classList.add("fade");
-        setTimeout(() => {
-          if (entry.parentNode) entry.parentNode.removeChild(entry);
-        }, 600);
+        setTimeout(() => entry.remove(), 600);
       }, 2800);
     }
 
-    function addDamagePopup(x, y, amount) {
+    function addDamagePopup(x, y, amount, crit = false) {
       damagePopups.push({
         x,
         y,
         text: "-" + amount,
         life: 0,
-        maxLife: 450
+        maxLife: 500,
+        scaleStart: crit ? 1.8 : 1.4,
+        scaleEnd: 1.0,
+        shake: 3,
+        crit
       });
+      shakeTime = 200;
+      shakeIntensity = crit ? 6 : 4;
     }
 
     function updateDamagePopups(dt) {
       damagePopups.forEach(p => {
         p.life += dt;
-        p.y -= dt * 0.02;
+        p.x += Math.sin(p.life * 0.05) * 0.3;
+        p.y -= dt * 0.04;
       });
       damagePopups = damagePopups.filter(p => p.life < p.maxLife);
     }
 
     function drawDamagePopups() {
-      ctx.font = "11px system-ui";
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
       damagePopups.forEach(p => {
         const t = p.life / p.maxLife;
         const alpha = 1 - t;
-        ctx.fillStyle = "rgba(255, 99, 132," + alpha.toFixed(3) + ")";
-        ctx.fillText(p.text, p.x, p.y);
+        const scale = p.scaleStart + (p.scaleEnd - p.scaleStart) * t;
+        const jitterX = (Math.random() - 0.5) * p.shake;
+        const jitterY = (Math.random() - 0.5) * p.shake;
+        ctx.save();
+        ctx.translate(p.x + jitterX, p.y + jitterY);
+        ctx.scale(scale, scale);
+        ctx.font = "12px system-ui";
+        ctx.fillStyle = p.crit ? "rgba(255, 215, 0," + alpha.toFixed(3) + ")" :
+                                  "rgba(255, 99, 132," + alpha.toFixed(3) + ")";
+        ctx.fillText(p.text, 0, 0);
+        ctx.restore();
       });
     }
 
+    function spawnRespawnParticles(x, y) {
+      for (let i = 0; i < 24; i++) {
+        const angle = (Math.PI * 2 * i) / 24 + Math.random() * 0.4;
+        const speed = 1 + Math.random() * 2;
+        respawnParticles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0,
+          maxLife: 700
+        });
+      }
+    }
+
+    function updateRespawnParticles(dt) {
+      respawnParticles.forEach(p => {
+        p.life += dt;
+        p.x += p.vx;
+        p.y += p.vy;
+      });
+      respawnParticles = respawnParticles.filter(p => p.life < p.maxLife);
+    }
+
+    function drawRespawnParticles() {
+      respawnParticles.forEach(p => {
+        const t = p.life / p.maxLife;
+        const alpha = 1 - t;
+        ctx.fillStyle = "rgba(0, 206, 201," + alpha.toFixed(3) + ")";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2 + (1 - t) * 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function showDeathScreen() { deathOverlay.classList.add("visible"); }
+    function hideDeathScreen() { deathOverlay.classList.remove("visible"); }
+
     function joinWithName() {
-      const name = usernameInput.value.trim() || "Player";
-      username = name;
+      try {
+        const name = (usernameInput.value || "").trim() || "Player";
+        username = name;
 
-      const newId = "user_" + name + "_" + Math.floor(Math.random() * 1e5);
-      pubnub.setUUID(newId);
-      myUUID = newId;
+        const newId = "user_" + name + "_" + Math.floor(Math.random() * 1e5);
+        myUUID = newId;
+        if (typeof pubnub.setUUID === "function") {
+          pubnub.setUUID(newId);
+        }
 
-      loginOverlay.style.display = "none";
-      hud.style.opacity = 1;
-      leaderboard.style.opacity = 1;
-      hintEl.style.opacity = 1;
+        if (!players[myUUID]) {
+          spawnPlayer(myUUID, username, randomNiceColor());
+        }
 
-      spawnPlayer(myUUID, username, randomNiceColor());
-      hudName.textContent = username;
-      hudDot.style.color = players[myUUID].color;
+        hudName.textContent = username;
+        hudDot.style.color = players[myUUID].color;
 
-      pubnub.subscribe({ channels: [ROOM_CHANNEL], withPresence: true });
-      publishState();
+        loginOverlay.style.display = "none";
+        hud.style.opacity = 1;
+        leaderboard.style.opacity = 1;
+        hintEl.style.opacity = 1;
+
+        pubnub.subscribe({ channels: [ROOM_CHANNEL], withPresence: true });
+
+        publishState();
+      } catch (err) {
+        console.error("joinWithName error:", err);
+      }
     }
 
     joinBtn.addEventListener("click", joinWithName);
     usernameInput.addEventListener("keydown", e => {
       if (e.key === "Enter") joinWithName();
+    });
+
+    respawnBtn.addEventListener("click", () => {
+      const me = players[myUUID];
+      if (!me) return;
+      respawnPlayer(me);
+      hideDeathScreen();
+      publishState();
     });
 
     canvas.addEventListener("mousemove", e => {
@@ -536,7 +758,13 @@
     });
 
     canvas.addEventListener("mousedown", () => {
-      tryFireBullet();
+      const me = players[myUUID];
+      if (!me || me.health <= 0) return;
+      if (rocketArmed && rocketReady) {
+        tryFireRocket();
+      } else {
+        tryFireBullet();
+      }
     });
 
     window.addEventListener("keydown", e => {
@@ -548,6 +776,9 @@
       if (e.key === "Shift") {
         keys.dash = true;
         tryDash();
+      }
+      if (e.key === "r" || e.key === "R") {
+        if (rocketReady) rocketArmed = !rocketArmed;
       }
     });
     window.addEventListener("keyup", e => {
@@ -581,8 +812,7 @@
       let dx = mouseX - centerX;
       let dy = mouseY - centerY;
       let len = Math.hypot(dx, dy) || 1;
-      dx /= len;
-      dy /= len;
+      dx /= len; dy /= len;
 
       const nearest = findNearestEnemyOnLine(centerX, centerY, dx, dy);
       if (nearest) {
@@ -701,78 +931,309 @@
       if (!me) return;
       const ratio = me.health / MAX_HEALTH;
       hudHPFill.style.transform = "scaleX(" + Math.max(0, Math.min(1, ratio)).toFixed(3) + ")";
+      rocketText.textContent = "Killstreak: " + killStreak + " / " + ROCKET_KILLS_REQUIRED;
+      rocketBadge.style.filter = rocketReady ? "brightness(1.3)" : "grayscale(0.6)";
     }
 
     function updateLeaderboard() {
       const list = Object.values(players).slice().sort((a, b) => (b.kills || 0) - (a.kills || 0));
       leaderboardBody.innerHTML = "";
-      list.forEach(p => {
+      list.forEach((p, index) => {
         const row = document.createElement("div");
-        row.className = "lb-row";
+        row.className = "lb-row" + (p.uuid === myUUID ? " self" : "");
+        const rankEl = document.createElement("span");
+        rankEl.className = "lb-rank";
+        rankEl.textContent = index + 1;
         const nameEl = document.createElement("span");
         nameEl.className = "lb-name";
         nameEl.textContent = p.username;
-        const scoreEl = document.createElement("span");
-        scoreEl.className = "lb-score";
-        scoreEl.textContent = (p.kills || 0) + " / " + (p.deaths || 0);
+        const kdEl = document.createElement("span");
+        kdEl.className = "lb-kd";
+        kdEl.textContent = (p.kills || 0) + " / " + (p.deaths || 0);
+        row.appendChild(rankEl);
         row.appendChild(nameEl);
-        row.appendChild(scoreEl);
+        row.appendChild(kdEl);
         leaderboardBody.appendChild(row);
       });
     }
 
+    function selectRocketTarget() {
+      let best = null;
+      let bestDist = Infinity;
+      Object.values(players).forEach(p => {
+        if (!p || p.uuid === myUUID || p.health <= 0) return;
+        const cx = p.x + PLAYER_SIZE / 2;
+        const cy = p.y + PLAYER_SIZE / 2;
+        const dx = cx - mouseX;
+        const dy = cy - mouseY;
+        const d = Math.hypot(dx, dy);
+        if (d < 70 && d < bestDist) {
+          bestDist = d;
+          best = p;
+        }
+      });
+      return best;
+    }
+
+    function tryFireRocket() {
+      const me = players[myUUID];
+      if (!me || me.health <= 0) return;
+      const target = selectRocketTarget();
+      if (!target) return;
+
+      rocketArmed = false;
+      rocketReady = false;
+      killStreak = 0;
+
+      const startX = me.x + PLAYER_SIZE / 2;
+      const startY = me.y + PLAYER_SIZE / 2;
+      rockets.push({
+        x: startX,
+        y: startY,
+        speed: ROCKET_SPEED_START,
+        angle: Math.atan2(mouseY - startY, mouseX - startX),
+        ownerId: myUUID,
+        targetId: target.uuid,
+        alive: true
+      });
+    }
+
+    function spawnRocketExplosion(x, y) {
+      rocketExplosions.push({
+        x,
+        y,
+        radius: 10,
+        maxRadius: 70,
+        life: 0,
+        maxLife: 350
+      });
+      rocketFlashTime = 120;
+    }
+
+    function updateRockets(dt) {
+      rockets.forEach(r => {
+        if (!r.alive) return;
+        const target = players[r.targetId];
+        if (!target || target.health <= 0) {
+          r.alive = false;
+          return;
+        }
+
+        const tx = target.x + PLAYER_SIZE / 2;
+        const ty = target.y + PLAYER_SIZE / 2;
+        const desired = Math.atan2(ty - r.y, tx - r.x);
+        let diff = desired - r.angle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        r.angle += diff * ROCKET_TURN_RATE;
+
+        r.speed = Math.min(ROCKET_SPEED_MAX, r.speed + ROCKET_ACCEL * (dt / 16));
+        r.x += Math.cos(r.angle) * r.speed;
+        r.y += Math.sin(r.angle) * r.speed;
+
+        const tailX = r.x - Math.cos(r.angle) * 10;
+        const tailY = r.y - Math.sin(r.angle) * 10;
+        rocketSmoke.push({
+          x: tailX,
+          y: tailY,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+          life: 0,
+          maxLife: 600,
+          size: 3 + Math.random() * 3
+        });
+
+        Object.values(players).forEach(p => {
+          if (!p || p.health <= 0) return;
+          if (p.uuid === r.ownerId) return;
+
+          const closestX = Math.max(p.x, Math.min(r.x, p.x + PLAYER_SIZE));
+          const closestY = Math.max(p.y, Math.min(r.y, p.y + PLAYER_SIZE));
+          const dist = Math.hypot(r.x - closestX, r.y - closestY);
+
+          if (dist < ROCKET_HIT_RADIUS) {
+            const hitX = closestX;
+            const hitY = closestY;
+            p.health = Math.max(0, p.health - ROCKET_DAMAGE);
+            recentlyDamaged[p.uuid] = performance.now();
+            addDamagePopup(hitX, hitY, ROCKET_DAMAGE, true);
+            spawnRocketExplosion(hitX, hitY);
+
+            if (p.health <= 0) {
+              p.deaths = (p.deaths || 0) + 1;
+              const killer = players[r.ownerId];
+              if (killer) {
+                killer.kills = (killer.kills || 0) + 1;
+                if (killer.uuid === myUUID) {
+                  killStreak++;
+                  if (killStreak >= ROCKET_KILLS_REQUIRED) {
+                    rocketReady = true;
+                  }
+                }
+                pubnub.publish({
+                  channel: ROOM_CHANNEL,
+                  message: {
+                    type: "kill",
+                    killerName: killer.username,
+                    victimName: p.username
+                  }
+                });
+              }
+              if (p.uuid === myUUID) {
+                showDeathScreen();
+              } else {
+                respawnPlayer(p);
+              }
+              if (p.uuid === myUUID || (players[r.ownerId] && players[r.ownerId].uuid === myUUID)) {
+                publishState();
+              }
+            } else if (p.uuid === myUUID) {
+              publishState();
+            }
+
+            r.alive = false;
+          }
+        });
+      });
+      rockets = rockets.filter(r => r.alive);
+
+      rocketSmoke.forEach(s => {
+        s.life += dt;
+        s.x += s.vx;
+        s.y += s.vy - 0.02 * (dt / 16);
+      });
+      rocketSmoke = rocketSmoke.filter(s => s.life < s.maxLife);
+
+      rocketExplosions.forEach(e => {
+        e.life += dt;
+        const t = e.life / e.maxLife;
+        e.radius = 10 + (e.maxRadius - 10) * t;
+      });
+      rocketExplosions = rocketExplosions.filter(e => e.life < e.maxLife);
+
+      if (rocketFlashTime > 0) rocketFlashTime -= dt;
+    }
+
+    function drawRockets() {
+      rockets.forEach(r => {
+        ctx.save();
+        ctx.translate(r.x, r.y);
+        ctx.rotate(r.angle);
+
+        ctx.fillStyle = "#ff9f43";
+        ctx.beginPath();
+        ctx.moveTo(16, 0);
+        ctx.lineTo(-10, -7);
+        ctx.lineTo(-10, 7);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#ffeaa7";
+        ctx.beginPath();
+        ctx.arc(16, 0, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ff6b6b";
+        ctx.beginPath();
+        ctx.moveTo(-10, 0);
+        ctx.lineTo(-20, -4);
+        ctx.lineTo(-20, 4);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+      });
+    }
+
+    function drawRocketSmoke() {
+      rocketSmoke.forEach(s => {
+        const t = s.life / s.maxLife;
+        const alpha = (1 - t) * 0.4;
+        const radius = s.size * (1 + t);
+        ctx.fillStyle = "rgba(200,200,210," + alpha.toFixed(3) + ")";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawRocketExplosions() {
+      rocketExplosions.forEach(e => {
+        const t = e.life / e.maxLife;
+        const alpha = 0.6 * (1 - t);
+        const inner = e.radius * 0.6;
+        const outer = e.radius;
+
+        const grad = ctx.createRadialGradient(
+          e.x, e.y, inner,
+          e.x, e.y, outer
+        );
+        grad.addColorStop(0, "rgba(255, 255, 255," + alpha + ")");
+        grad.addColorStop(0.4, "rgba(255, 200, 120," + alpha + ")");
+        grad.addColorStop(1, "rgba(255, 120, 80,0)");
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, outer, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      if (rocketFlashTime > 0) {
+        const a = 0.12 * (rocketFlashTime / 120);
+        ctx.fillStyle = "rgba(255, 240, 200," + a.toFixed(3) + ")";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
     pubnub.addListener({
-  message: event => {
-    const msg = event.message;
-    if (event.channel !== ROOM_CHANNEL) return;
+      message: event => {
+        const msg = event.message;
+        if (event.channel !== ROOM_CHANNEL) return;
 
-    if (msg.type === "state") {
-      const { uuid, username, x, y, color, health, kills, deaths } = msg;
-      if (!uuid) return;
-      if (!players[uuid]) {
-        spawnPlayer(uuid, username, color);
+        if (msg.type === "state") {
+          const { uuid, username, x, y, color, health, kills, deaths } = msg;
+          if (!uuid) return;
+
+          if (!players[uuid]) {
+            spawnPlayer(uuid, username, color);
+          }
+          const p = players[uuid];
+          p.username = username || p.username;
+          p.color = color || p.color;
+
+          if (uuid !== myUUID) {
+            const nx = x || 0;
+            const ny = y || 0;
+            p.fromX = (typeof p.x === "number") ? p.x : nx;
+            p.fromY = (typeof p.y === "number") ? p.y : ny;
+            p.toX = nx;
+            p.toY = ny;
+            p.lerpStart = performance.now();
+            p.lerpDuration = 110;
+
+            const now = performance.now();
+            const lastHit = recentlyDamaged[uuid] || 0;
+            const wasRecentlyHit = now - lastHit < RECENT_DAMAGE_WINDOW;
+
+            if (!wasRecentlyHit && typeof health === "number") {
+              p.health = health;
+            }
+            if (typeof kills === "number") p.kills = kills;
+            if (typeof deaths === "number") p.deaths = deaths;
+          } else {
+            if (typeof kills === "number") p.kills = kills;
+            if (typeof deaths === "number") p.deaths = deaths;
+          }
+          p.lastSeen = performance.now();
+        } else if (msg.type === "bullet-spawn") {
+          spawnBullet(msg.id, msg.ownerId, msg.x, msg.y, msg.vx, msg.vy);
+        } else if (msg.type === "kill") {
+          const killerName = msg.killerName || "Player";
+          const victimName = msg.victimName || "Player";
+          addKillfeedEntry(killerName, victimName);
+        }
       }
-      const p = players[uuid];
-      p.username = username || p.username;
-      p.color = color || p.color;
-
-      if (uuid !== myUUID) {
-        // ONLY interpolate other players
-        const nx = x || 0;
-        const ny = y || 0;
-        p.fromX = (typeof p.x === "number") ? p.x : nx;
-        p.fromY = (typeof p.y === "number") ? p.y : ny;
-        p.toX = nx;
-        p.toY = ny;
-        p.lerpStart = performance.now();
-        p.lerpDuration = 110;
-
-        if (typeof health === "number") p.health = health;
-        if (typeof kills === "number") p.kills = kills;
-        if (typeof deaths === "number") p.deaths = deaths;
-      } else {
-        // For your own player, ONLY trust local simulation for x/y
-        // but you can still copy kills/deaths/health if you want.
-        if (typeof health === "number") p.health = health;
-        if (typeof kills === "number") p.kills = kills;
-        if (typeof deaths === "number") p.deaths = deaths;
-      }
-      p.lastSeen = performance.now();
-    } else if (msg.type === "bullet-spawn") {
-      spawnBullet(msg.id, msg.ownerId, msg.x, msg.y, msg.vx, msg.vy);
-    } else if (msg.type === "kill") {
-      const killerName = msg.killerName || "Player";
-      const victimName = msg.victimName || "Player";
-      addKillfeedEntry(killerName, victimName);
-    }
-  },
-  status: s => {
-    if (s.category === "PNConnectedCategory") {
-      console.log("Connected to", ROOM_CHANNEL);
-    }
-  }
-});
-
+    });
 
     let lastTime = performance.now();
     function loop(now) {
@@ -785,32 +1246,36 @@
 
     function update(dt) {
       const me = players[myUUID];
-      if (me && me.health > 0) {
-        if (!me.dashActive) {
-          if (keys.up) me.vy -= ACCEL;
-          if (keys.down) me.vy += ACCEL;
-          if (keys.left) me.vx -= ACCEL;
-          if (keys.right) me.vx += ACCEL;
+      if (me) {
+        if (me.health > 0) {
+          if (!me.dashActive) {
+            if (keys.up) me.vy -= ACCEL;
+            if (keys.down) me.vy += ACCEL;
+            if (keys.left) me.vx -= ACCEL;
+            if (keys.right) me.vx += ACCEL;
+          }
+
+          me.vx *= FRICTION;
+          me.vy *= FRICTION;
+
+          const spd = Math.hypot(me.vx, me.vy);
+          if (spd > MAX_SPEED && !me.dashActive) {
+            me.vx = (me.vx / spd) * MAX_SPEED;
+            me.vy = (me.vy / spd) * MAX_SPEED;
+          }
+
+          me.x += me.vx;
+          me.y += me.vy;
+
+          me.x = Math.max(40, Math.min(canvas.width - PLAYER_SIZE - 40, me.x));
+          me.y = Math.max(40, Math.min(canvas.height - PLAYER_SIZE - 40, me.y));
+
+          me.lastSeen = performance.now();
+
+          publishStateThrottled();
+        } else {
+          showDeathScreen();
         }
-
-        me.vx *= FRICTION;
-        me.vy *= FRICTION;
-
-        const spd = Math.hypot(me.vx, me.vy);
-        if (spd > MAX_SPEED && !me.dashActive) {
-          me.vx = (me.vx / spd) * MAX_SPEED;
-          me.vy = (me.vy / spd) * MAX_SPEED;
-        }
-
-        me.x += me.vx;
-        me.y += me.vy;
-
-        me.x = Math.max(40, Math.min(canvas.width - PLAYER_SIZE - 40, me.x));
-        me.y = Math.max(40, Math.min(canvas.height - PLAYER_SIZE - 40, me.y));
-
-        me.lastSeen = performance.now();
-
-        publishStateThrottled();
         updateDash(me);
         updateHUD();
       }
@@ -856,6 +1321,7 @@
             b.alive = false;
             p.health = Math.max(0, p.health - BULLET_DAMAGE);
             p.lastSeen = performance.now();
+            recentlyDamaged[p.uuid] = performance.now();
             addDamagePopup(closestX, closestY, BULLET_DAMAGE);
 
             if (p.health <= 0) {
@@ -863,6 +1329,12 @@
               const killer = players[b.ownerId];
               if (killer) {
                 killer.kills = (killer.kills || 0) + 1;
+                if (killer.uuid === myUUID) {
+                  killStreak++;
+                  if (killStreak >= ROCKET_KILLS_REQUIRED) {
+                    rocketReady = true;
+                  }
+                }
                 pubnub.publish({
                   channel: ROOM_CHANNEL,
                   message: {
@@ -872,7 +1344,11 @@
                   }
                 });
               }
-              respawnPlayer(p);
+              if (p.uuid === myUUID) {
+                showDeathScreen();
+              } else {
+                respawnPlayer(p);
+              }
               if (p.uuid === myUUID || (killer && killer.uuid === myUUID)) {
                 publishState();
               }
@@ -887,8 +1363,15 @@
         if (!bullets[id].alive) delete bullets[id];
       });
 
+      updateRockets(dt);
       updateDamagePopups(dt);
+      updateRespawnParticles(dt);
       updateLeaderboard();
+
+      if (shakeTime > 0) {
+        shakeTime -= dt;
+        if (shakeTime < 0) shakeTime = 0;
+      }
     }
 
     function drawBackground() {
@@ -926,6 +1409,7 @@
     function drawPlayers() {
       const now = performance.now();
       Object.values(players).forEach(p => {
+        if (p.health <= 0) return;
         const isMe = p.uuid === myUUID;
 
         const sx = p.x;
@@ -1027,11 +1511,62 @@
       });
     }
 
+    function drawCrosshair() {
+      const size = rocketArmed && rocketReady ? 12 : 8;
+      const color = rocketArmed && rocketReady ? "#ff9f43" : "#ffffff";
+      ctx.save();
+      ctx.translate(mouseX, mouseY);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-size, 0);
+      ctx.lineTo(size, 0);
+      ctx.moveTo(0, -size);
+      ctx.lineTo(0, size);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      if (rocketArmed && rocketReady) {
+        const t = selectRocketTarget();
+        if (t) {
+          const cx = t.x + PLAYER_SIZE / 2;
+          const cy = t.y + PLAYER_SIZE / 2;
+          ctx.save();
+          ctx.strokeStyle = "rgba(255,159,67,0.9)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.rect(cx - PLAYER_SIZE, cy - PLAYER_SIZE, PLAYER_SIZE*2, PLAYER_SIZE*2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
     function draw() {
+      ctx.save();
+      if (shakeTime > 0) {
+        const t = shakeTime / 200;
+        const mag = shakeIntensity * t;
+        const ox = (Math.random() - 0.5) * mag;
+        const oy = (Math.random() - 0.5) * mag;
+        ctx.translate(ox, oy);
+      }
+
       drawBackground();
       drawBullets();
+      drawRocketSmoke();
+      drawRockets();
       drawPlayers();
+      drawRespawnParticles();
       drawDamagePopups();
+      drawRocketExplosions();
+
+      ctx.restore();
+      drawCrosshair();
     }
 
     requestAnimationFrame(loop);
