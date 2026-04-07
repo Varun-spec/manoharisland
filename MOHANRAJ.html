@@ -4,46 +4,28 @@
   <meta charset="UTF-8" />
   <title>Joint Drawing Canvas</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
       padding: 10px;
       font-family: sans-serif;
-      text-align: center;
       background: #1f1f1f;
       color: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
     }
     h1 {
-      margin-top: 10px;
+      margin: 10px 0 0 0;
+      text-align: center;
     }
-    #topbar {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      margin: 10px 0;
-      flex-wrap: wrap;
+    a {
+      color: #4da3ff;
     }
-    #topbar > * {
-      margin: 2px;
-    }
-    #canvasWrapper {
-      position: relative;
-      display: inline-block;
-    }
-    #drawCanvas, #cursorCanvas {
-      border: 2px solid #555;
-      background: #ffffff;
-      border-radius: 4px;
-      touch-action: none;
-      display: block;
-    }
-    #cursorCanvas {
-      position: absolute;
-      left: 0;
-      top: 0;
-      pointer-events: none; /* so mouse events hit drawCanvas */
-      background: transparent;
-    }
+
+    /* Shared buttons */
     button {
       padding: 6px 12px;
       font-size: 14px;
@@ -54,31 +36,17 @@
       color: #f5f5f5;
       transition: background 0.15s ease;
     }
-    button.active {
-      background: #007bff;
-    }
     button:hover {
       background: #444;
     }
-    #colorPicker {
-      width: 40px;
-      height: 32px;
-      padding: 0;
-      border-radius: 4px;
-      border: none;
-      cursor: pointer;
+    button.primary {
+      background: #007bff;
     }
-    #brushSize {
-      width: 100px;
+    button.primary:hover {
+      background: #1a88ff;
     }
-    label {
-      font-size: 13px;
-    }
-    #info {
-      margin-top: 6px;
-      font-size: 13px;
-      color: #ccc;
-    }
+
+    /* Login overlay (username) */
     #loginOverlay {
       position: fixed;
       inset: 0;
@@ -86,14 +54,14 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 10;
+      z-index: 20;
     }
     #loginBox {
       background: #222;
       padding: 20px 24px;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.6);
-      max-width: 300px;
+      max-width: 320px;
       width: 90%;
     }
     #loginBox h2 {
@@ -107,15 +75,274 @@
       border-radius: 4px;
       border: 1px solid #555;
       font-size: 14px;
-      box-sizing: border-box;
     }
-    #loginBox button {
+
+    /* Lobby */
+    #lobbyScreen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 20px;
+    }
+    #lobbyBox {
+      background: #222;
+      border-radius: 8px;
+      padding: 16px;
+      max-width: 480px;
       width: 100%;
+      box-shadow: 0 0 8px rgba(0,0,0,0.5);
+    }
+    #lobbyBox h2 {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+    #roomList {
+      max-height: 220px;
+      overflow-y: auto;
+      background: #111;
+      border-radius: 6px;
+      padding: 6px;
+      border: 1px solid #333;
+      margin-bottom: 10px;
+    }
+    .roomRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid #222;
+    }
+    .roomRow:last-child {
+      border-bottom: none;
+    }
+    .roomName {
+      font-weight: bold;
+    }
+    #createRoomRow {
+      display: flex;
+      gap: 6px;
       margin-top: 4px;
+    }
+    #newRoomInput {
+      flex: 1;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #555;
+      background: #111;
+      color: #f5f5f5;
+      font-size: 14px;
+    }
+    #lobbyInfo {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 4px;
+    }
+
+    /* Main app */
+    #appScreen {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      height: 100%;
     }
     #userLabel {
       font-size: 13px;
       opacity: 0.85;
+      text-align: center;
+      margin: 4px 0;
+    }
+    #roomLabel {
+      font-size: 13px;
+      opacity: 0.85;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    #info {
+      font-size: 13px;
+      color: #ccc;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    #mainRow {
+      flex: 1;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      overflow: hidden;
+    }
+    #leftPane {
+      flex: 2.7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 0;
+    }
+    #rightPane {
+      flex: 1.3;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #333;
+      padding-left: 10px;
+      min-width: 260px;
+      max-width: 360px;
+    }
+
+    #topbar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+      flex-wrap: wrap;
+    }
+    #topbar > * {
+      margin: 2px;
+    }
+    label {
+      font-size: 13px;
+    }
+    #colorPicker {
+      width: 40px;
+      height: 32px;
+      padding: 0;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+    }
+    #brushSize {
+      width: 100px;
+    }
+
+    #canvasWrapper {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      max-height: 100%;
+    }
+    #drawCanvas, #cursorCanvas {
+      border: 2px solid #555;
+      background: #ffffff;
+      border-radius: 4px;
+      touch-action: none;
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+    #cursorCanvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      pointer-events: none;
+      background: transparent;
+    }
+
+    #bottomButtons {
+      margin-top: 6px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    /* Chat */
+    #chatTitle {
+      font-size: 15px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    #chatBox {
+      flex: 1.2;
+      background: #111;
+      border-radius: 6px;
+      padding: 6px;
+      overflow-y: auto;
+      font-size: 13px;
+      border: 1px solid #333;
+      margin-bottom: 6px;
+      min-height: 0;
+    }
+    .chatMessage {
+      margin-bottom: 4px;
+      word-wrap: break-word;
+    }
+    .chatUser {
+      font-weight: bold;
+    }
+    .chatSystem {
+      font-style: italic;
+      color: #aaa;
+    }
+    #chatInputRow {
+      display: flex;
+      margin-top: 2px;
+      gap: 6px;
+    }
+    #chatInput {
+      flex: 1;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #555;
+      background: #222;
+      color: #f5f5f5;
+      font-size: 13px;
+    }
+
+    /* Online users */
+    #onlineTitle {
+      font-size: 14px;
+      font-weight: bold;
+      margin: 6px 0 4px 0;
+    }
+    #onlineList {
+      flex: 0.6;
+      background: #111;
+      border-radius: 6px;
+      padding: 6px;
+      border: 1px solid #333;
+      font-size: 13px;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .onlineUser {
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .onlineColorDot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Emoji reactions */
+    #emojiRow {
+      margin-top: 6px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .emojiBtn {
+      font-size: 16px;
+      padding: 4px 8px;
+      background: #222;
+    }
+    .emojiBtn:hover {
+      background: #333;
+    }
+    .floating-emoji {
+      position: fixed;
+      font-size: 28px;
+      pointer-events: none;
+      animation: floatUp 1.8s ease-out forwards;
+      z-index: 15;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-140px); opacity: 0; }
     }
   </style>
 </head>
@@ -123,56 +350,116 @@
   <!-- Username overlay -->
   <div id="loginOverlay">
     <div id="loginBox">
-      <h2>Join the canvas</h2>
-      <p>Enter a username so others can see you:</p>
+      <h2>Welcome</h2>
+      <p>Pick a username:</p>
       <input id="usernameInput" type="text" placeholder="e.g. Aryan" maxlength="20">
-      <button id="joinBtn">Join</button>
+      <button id="joinBtn" class="primary">Continue</button>
     </div>
   </div>
 
-  <h1>Joint Drawing Canvas</h1>
-  <p id="userLabel"></p>
-
-  <div id="topbar">
-    <label>
-      Color
-      <input type="color" id="colorPicker" value="#000000">
-    </label>
-
-    <label>
-      Brush size
-      <input type="range" id="brushSize" min="1" max="40" value="4">
-      <span id="brushSizeValue">4</span> px
-    </label>
-
-    <button id="penBtn" class="active">Pen</button>
-    <button id="eraserBtn">Eraser</button>
-    <button id="eraseAllBtn">Erase All</button>
+  <!-- Lobby screen -->
+  <div id="lobbyScreen">
+    <h1>Joint Drawing Rooms</h1>
+    <div id="lobbyBox">
+      <h2>Lobby</h2>
+      <div id="roomList"></div>
+      <div id="createRoomRow">
+        <input id="newRoomInput" type="text" placeholder="New room name (e.g. chill)" maxlength="20">
+        <button id="createRoomBtn" class="primary">Create</button>
+      </div>
+      <div id="lobbyInfo">All rooms are public. Click any room to join it.</div>
+    </div>
   </div>
 
-  <div id="canvasWrapper">
-    <canvas id="drawCanvas" width="900" height="520"></canvas>
-    <canvas id="cursorCanvas" width="900" height="520"></canvas>
+  <!-- Main app (per-room) -->
+  <div id="appScreen">
+    <h1>Joint Drawing Canvas</h1>
+    <p id="userLabel"></p>
+    <p id="roomLabel"></p>
+    <div id="info"></div>
+
+    <div id="mainRow">
+      <div id="leftPane">
+        <div id="topbar">
+          <label>
+            Color
+            <input type="color" id="colorPicker" value="#000000">
+          </label>
+
+          <label>
+            Brush size
+            <input type="range" id="brushSize" min="1" max="40" value="4">
+            <span id="brushSizeValue">4</span> px
+          </label>
+
+          <button id="penBtn" class="active">Pen</button>
+          <button id="eraserBtn">Eraser</button>
+          <button id="eraseAllBtn">Erase All</button>
+        </div>
+
+        <div id="canvasWrapper">
+          <canvas id="drawCanvas" width="900" height="520"></canvas>
+          <canvas id="cursorCanvas" width="900" height="520"></canvas>
+        </div>
+
+        <div id="bottomButtons">
+          <button id="downloadBtn">Download PNG</button>
+          <button id="backToLobbyBtn">Back to Lobby</button>
+        </div>
+      </div>
+
+      <div id="rightPane">
+        <div id="chatTitle">Chat</div>
+        <div id="chatBox"></div>
+        <div id="chatInputRow">
+          <input id="chatInput" type="text" placeholder="Type a message and press Enter">
+          <button id="sendChatBtn">Send</button>
+        </div>
+
+        <div id="emojiRow">
+          <button class="emojiBtn" data-emoji="🎉">🎉</button>
+          <button class="emojiBtn" data-emoji="😂">😂</button>
+          <button class="emojiBtn" data-emoji="❤️">❤️</button>
+          <button class="emojiBtn" data-emoji="🔥">🔥</button>
+        </div>
+
+        <div id="onlineTitle">Online in this room</div>
+        <div id="onlineList"></div>
+      </div>
+    </div>
   </div>
 
-  <div id="info">Enter a username to start.</div>
-
-  <!-- PubNub realtime library -->
+  <!-- PubNub -->
   <script src="https://cdn.jsdelivr.net/npm/pubnub@7.5.0/dist/web/pubnub.min.js"></script>
   <script>
-    // ====== CONFIG: put your PubNub keys here ======
+    // ====== CONFIG ======
+    const LOBBY_CHANNEL = "joint-drawing-lobby";
+    let ROOM_CHANNEL = null;        // per-room channel
+    let CURRENT_ROOM = null;
+
     const pubnub = new PubNub({
-      publishKey:   "pub-c-fc766aca-9661-4f55-bc9a-667c55e2b5c1",   // TODO: replace
-      subscribeKey: "sub-c-1dd042db-ecfa-47ad-8d2c-4ecb39394c0b",   // TODO: replace
+      publishKey:   "pub-c-fc766aca-9661-4f55-bc9a-667c55e2b5c1",   // <-- replace
+      subscribeKey: "sub-c-1dd042db-ecfa-47ad-8d2c-4ecb39394c0b",   // <-- replace
       uuid: "temp_" + Math.floor(Math.random() * 1e9)
     });
 
-    const channel = "joint-drawing-canvas-v4";
-
     // ====== DOM REFERENCES ======
+    const loginOverlay = document.getElementById("loginOverlay");
+    const usernameInput = document.getElementById("usernameInput");
+    const joinBtn = document.getElementById("joinBtn");
+
+    const lobbyScreen = document.getElementById("lobbyScreen");
+    const roomListDiv = document.getElementById("roomList");
+    const newRoomInput = document.getElementById("newRoomInput");
+    const createRoomBtn = document.getElementById("createRoomBtn");
+
+    const appScreen = document.getElementById("appScreen");
+    const userLabel = document.getElementById("userLabel");
+    const roomLabel = document.getElementById("roomLabel");
+    const info = document.getElementById("info");
+
     const drawCanvas = document.getElementById("drawCanvas");
     const drawCtx = drawCanvas.getContext("2d");
-
     const cursorCanvas = document.getElementById("cursorCanvas");
     const cursorCtx = cursorCanvas.getContext("2d");
 
@@ -182,49 +469,349 @@
     const penBtn = document.getElementById("penBtn");
     const eraserBtn = document.getElementById("eraserBtn");
     const eraseAllBtn = document.getElementById("eraseAllBtn");
-    const info = document.getElementById("info");
-    const userLabel = document.getElementById("userLabel");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const backToLobbyBtn = document.getElementById("backToLobbyBtn");
 
-    const loginOverlay = document.getElementById("loginOverlay");
-    const usernameInput = document.getElementById("usernameInput");
-    const joinBtn = document.getElementById("joinBtn");
+    const chatBox = document.getElementById("chatBox");
+    const chatInput = document.getElementById("chatInput");
+    const sendChatBtn = document.getElementById("sendChatBtn");
+    const emojiButtons = document.querySelectorAll(".emojiBtn");
+
+    const onlineList = document.getElementById("onlineList");
 
     // ====== STATE ======
+    let username = null;
+    let myColor = randomNiceColor(); // fixed random [web:104]
     let isDrawing = false;
     let lastX = 0;
     let lastY = 0;
     let currentColor = colorPicker.value;
     let currentSize = parseInt(brushSize.value, 10);
-    let currentTool = "pen"; // "pen" or "eraser"
+    let currentTool = "pen";
+    let cursors = {};       // id -> { x, y, username, color, size, lastSeen }
+    let onlineUsers = {};   // uuid -> { username, color }
 
-    let username = null;
-    let myColor = randomNiceColor();
-    let cursors = {}; // id -> { x, y, username, color, lastSeen }
+    let rooms = {};         // roomName -> { createdBy, createdAt }
 
-    // Brush defaults
     drawCtx.lineJoin = "round";
     drawCtx.lineCap = "round";
     drawCtx.strokeStyle = currentColor;
     drawCtx.lineWidth = currentSize;
 
-    // ====== LOGIN / USERNAME ======
+    // ====== LOGIN ======
     function joinWithName() {
       const name = usernameInput.value.trim();
       if (!name) return;
       username = name;
-      pubnub.setUUID("user_" + name + "_" + Math.floor(Math.random() * 1e5));
-      userLabel.textContent = "You are: " + name + " (cursor color: " + myColor + ")";
+      const id = "user_" + name + "_" + Math.floor(Math.random() * 1e5);
+      pubnub.setUUID(id);
       loginOverlay.style.display = "none";
-      info.textContent = "Connected! Share this page URL with friends.";
-      sendMessage({ type: "join", username: name, color: myColor });
+      userLabel.textContent = "You are: " + name + " (color used in chat & cursors)";
+      // Subscribe to lobby after username is set
+      subscribeToLobby();
     }
-
     joinBtn.addEventListener("click", joinWithName);
     usernameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") joinWithName();
     });
 
-    // ====== UI HANDLERS ======
+    // ====== LOBBY ======
+    function subscribeToLobby() {
+      pubnub.subscribe({ channels: [LOBBY_CHANNEL], withPresence: false }); // presence not needed for lobby
+      info.textContent = "In lobby. Choose or create a room.";
+      // Announce presence in lobby (for potential future use)
+      sendLobbyMessage({ type: "hello-lobby", username });
+    }
+
+    function sendLobbyMessage(msg) {
+      pubnub.publish({ channel: LOBBY_CHANNEL, message: msg });
+    }
+
+    function renderRoomList() {
+      roomListDiv.innerHTML = "";
+      const names = Object.keys(rooms);
+      if (names.length === 0) {
+        const empty = document.createElement("div");
+        empty.textContent = "No rooms yet. Create one!";
+        empty.style.color = "#aaa";
+        roomListDiv.appendChild(empty);
+        return;
+      }
+      names.forEach(name => {
+        const row = document.createElement("div");
+        row.className = "roomRow";
+        const left = document.createElement("div");
+        const rn = document.createElement("span");
+        rn.className = "roomName";
+        rn.textContent = name;
+        const meta = document.createElement("span");
+        meta.style.fontSize = "12px";
+        meta.style.color = "#aaa";
+        meta.textContent = "  by " + (rooms[name].createdBy || "someone");
+        left.appendChild(rn);
+        left.appendChild(meta);
+
+        const joinBtnEl = document.createElement("button");
+        joinBtnEl.textContent = "Join";
+        joinBtnEl.className = "primary";
+        joinBtnEl.addEventListener("click", () => joinRoom(name));
+
+        row.appendChild(left);
+        row.appendChild(joinBtnEl);
+        roomListDiv.appendChild(row);
+      });
+    }
+
+    function createRoom() {
+      const name = newRoomInput.value.trim();
+      if (!name) return;
+      newRoomInput.value = "";
+      const safeName = name.replace(/[^\w\-]/g, "").toLowerCase();
+      if (!safeName) return;
+      if (!rooms[safeName]) {
+        rooms[safeName] = { createdBy: username, createdAt: Date.now() };
+        sendLobbyMessage({ type: "room-create", room: safeName, createdBy: username });
+        renderRoomList();
+      }
+      joinRoom(safeName);
+    }
+
+    createRoomBtn.addEventListener("click", createRoom);
+    newRoomInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") createRoom();
+    });
+
+    function joinRoom(roomName) {
+      CURRENT_ROOM = roomName;
+      ROOM_CHANNEL = "joint-drawing-canvas-" + roomName;
+      lobbyScreen.style.display = "none";
+      appScreen.style.display = "flex";
+      info.textContent = "Connecting to room...";
+      roomLabel.textContent = "Room: " + roomName;
+      cursors = {};
+      onlineUsers = {};
+      clearDrawCanvas();
+      clearCursorCanvas();
+      chatBox.innerHTML = "";
+      onlineList.innerHTML = "";
+
+      // Subscribe to room with presence
+      pubnub.subscribe({ channels: [ROOM_CHANNEL], withPresence: true });
+      sendRoomMessage({ type: "join", username, color: myColor });
+      addChatMessage("System", username + " joined room " + roomName, true);
+    }
+
+    function leaveRoom() {
+      if (ROOM_CHANNEL) {
+        pubnub.unsubscribe({ channels: [ROOM_CHANNEL] });
+      }
+      ROOM_CHANNEL = null;
+      CURRENT_ROOM = null;
+      appScreen.style.display = "none";
+      lobbyScreen.style.display = "flex";
+      info.textContent = "In lobby. Choose or create a room.";
+    }
+
+    backToLobbyBtn.addEventListener("click", leaveRoom);
+
+    // ====== ROOM MESSAGING ======
+    function sendRoomMessage(msg) {
+      if (!ROOM_CHANNEL) return;
+      pubnub.publish({ channel: ROOM_CHANNEL, message: msg });
+    }
+
+    // ====== CHAT ======
+    function addChatMessage(user, text, isSystem = false, color = "#f5f5f5") {
+      const div = document.createElement("div");
+      div.className = "chatMessage";
+      if (isSystem) {
+        div.classList.add("chatSystem");
+        div.textContent = text;
+      } else {
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "chatUser";
+        nameSpan.style.color = color;
+        nameSpan.textContent = user + ": ";
+        const textSpan = document.createElement("span");
+        textSpan.textContent = text;
+        div.appendChild(nameSpan);
+        div.appendChild(textSpan);
+      }
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function sendChat() {
+      const msg = chatInput.value.trim();
+      if (!msg || !username || !ROOM_CHANNEL) return;
+      chatInput.value = "";
+      sendRoomMessage({ type: "chat", username, color: myColor, text: msg });
+      addChatMessage(username, msg, false, myColor);
+    }
+
+    sendChatBtn.addEventListener("click", sendChat);
+    chatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendChat();
+      }
+    });
+
+    // ====== ONLINE LIST ======
+    function renderOnlineList() {
+      onlineList.innerHTML = "";
+      Object.keys(onlineUsers).forEach(uuid => {
+        const u = onlineUsers[uuid];
+        const row = document.createElement("div");
+        row.className = "onlineUser";
+        const dot = document.createElement("div");
+        dot.className = "onlineColorDot";
+        dot.style.backgroundColor = u.color || "#4cd137";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = u.username || uuid;
+        row.appendChild(dot);
+        row.appendChild(nameSpan);
+        onlineList.appendChild(row);
+      });
+    }
+
+    // ====== DRAWING HELPERS ======
+    function randomNiceColor() {
+      const colors = ["#ff4757", "#1e90ff", "#2ed573", "#ffa502", "#e84393", "#00cec9", "#fd79a8", "#6c5ce7", "#00b894"];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    function clearDrawCanvas() {
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
+
+    function clearCursorCanvas() {
+      cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+    }
+
+    function getOffsetPos(e) {
+      const rect = drawCanvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+
+    function drawSegment(data, fromRemote = false) {
+      drawCtx.save();
+      drawCtx.lineWidth = data.size;
+      drawCtx.lineCap = "round";
+      drawCtx.lineJoin = "round";
+      drawCtx.strokeStyle = data.tool === "eraser" ? "#ffffff" : data.color;
+
+      drawCtx.beginPath();
+      drawCtx.moveTo(data.lastX, data.lastY);
+      drawCtx.lineTo(data.x, data.y);
+      drawCtx.stroke();
+      drawCtx.restore();
+
+      if (!fromRemote) {
+        sendRoomMessage({
+          type: "stroke",
+          x: data.x,
+          y: data.y,
+          lastX: data.lastX,
+          lastY: data.lastY,
+          color: data.color,
+          size: data.size,
+          tool: data.tool
+        });
+      }
+    }
+
+    // ====== CURSORS ======
+    function drawCursors() {
+      clearCursorCanvas();
+      const now = Date.now();
+
+      Object.keys(cursors).forEach((id) => {
+        const c = cursors[id];
+        if (now - c.lastSeen > 8000) {
+          delete cursors[id];
+          return;
+        }
+
+        const x = c.x;
+        const y = c.y;
+        const radius = (c.size || 4) / 2 + 3;
+
+        cursorCtx.save();
+        cursorCtx.beginPath();
+        cursorCtx.strokeStyle = c.color;
+        cursorCtx.lineWidth = 1.5;
+        cursorCtx.arc(x, y, radius, 0, Math.PI * 2);
+        cursorCtx.stroke();
+        cursorCtx.restore();
+
+        cursorCtx.save();
+        cursorCtx.font = "12px sans-serif";
+        cursorCtx.fillStyle = c.color;
+        cursorCtx.strokeStyle = "#ffffff";
+        cursorCtx.lineWidth = 3;
+        cursorCtx.textBaseline = "top";
+        const text = c.username || "Player";
+        cursorCtx.strokeText(text, x + radius + 4, y + radius + 2);
+        cursorCtx.fillText(text, x + radius + 4, y + radius + 2);
+        cursorCtx.restore();
+      });
+    }
+
+    function updateLocalCursor(x, y) {
+      if (!ROOM_CHANNEL) return;
+      const id = pubnub.getUUID();
+      cursors[id] = {
+        x,
+        y,
+        username,
+        color: myColor,
+        size: currentSize,
+        lastSeen: Date.now()
+      };
+
+      sendRoomMessage({
+        type: "cursor",
+        x,
+        y,
+        username,
+        color: myColor,
+        size: currentSize
+      });
+
+      drawCursors();
+    }
+
+    // ====== EMOJI REACTIONS ======
+    function spawnFloatingEmoji(emoji) {
+      const el = document.createElement("div");
+      el.className = "floating-emoji";
+      el.textContent = emoji;
+
+      const startX = Math.random() * window.innerWidth * 0.8 + window.innerWidth * 0.1;
+      const startY = window.innerHeight - 60;
+      el.style.left = startX + "px";
+      el.style.top = startY + "px";
+
+      document.body.appendChild(el);
+      el.addEventListener("animationend", () => {
+        el.remove();
+      });
+    }
+
+    emojiButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (!ROOM_CHANNEL || !username) return;
+        const emoji = btn.dataset.emoji;
+        sendRoomMessage({ type: "reaction", emoji, username });
+        spawnFloatingEmoji(emoji); // instant local feedback
+      });
+    });
+
+    // ====== CANVAS EVENTS ======
     colorPicker.addEventListener("input", () => {
       currentColor = colorPicker.value;
       if (currentTool === "pen") {
@@ -253,124 +840,24 @@
     });
 
     eraseAllBtn.addEventListener("click", () => {
+      if (!ROOM_CHANNEL) return;
       clearDrawCanvas();
-      sendMessage({ type: "clear" });
+      sendRoomMessage({ type: "clear" });
     });
 
-    // ====== HELPERS ======
-    function clearDrawCanvas() {
-      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    }
+    downloadBtn.addEventListener("click", () => {
+      const dataURL = drawCanvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      link.download = "canvas-" + (CURRENT_ROOM || "room") + "-" + timestamp + ".png";
+      link.href = dataURL;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
 
-    function clearCursorCanvas() {
-      cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
-    }
-
-    function getOffsetPos(e) {
-      const rect = drawCanvas.getBoundingClientRect();
-      return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
-    }
-
-    function randomNiceColor() {
-      const colors = ["#ff4757", "#1e90ff", "#2ed573", "#ffa502", "#e84393", "#00cec9", "#fd79a8", "#6c5ce7", "#00b894"];
-      return colors[Math.floor(Math.random() * colors.length)];
-    }
-
-    // ====== DRAWING SEGMENTS (only on drawCanvas) ======
-    function drawSegment(data, fromRemote = false) {
-      drawCtx.save();
-      drawCtx.lineWidth = data.size;
-      drawCtx.lineCap = "round";
-      drawCtx.lineJoin = "round";
-      drawCtx.strokeStyle = data.tool === "eraser" ? "#ffffff" : data.color;
-
-      drawCtx.beginPath();
-      drawCtx.moveTo(data.lastX, data.lastY);
-      drawCtx.lineTo(data.x, data.y);
-      drawCtx.stroke();
-      drawCtx.restore();
-
-      if (!fromRemote) {
-        sendMessage({
-          type: "stroke",
-          x: data.x,
-          y: data.y,
-          lastX: data.lastX,
-          lastY: data.lastY,
-          color: data.color,
-          size: data.size,
-          tool: data.tool
-        });
-      }
-    }
-
-    // ====== CURSOR DRAWING (only on cursorCanvas) ======
-    function drawCursors() {
-      clearCursorCanvas();
-      const now = Date.now();
-
-      Object.keys(cursors).forEach((id) => {
-        const c = cursors[id];
-        if (now - c.lastSeen > 8000) {
-          delete cursors[id];
-          return;
-        }
-
-        const x = c.x;
-        const y = c.y;
-
-        // cursor circle
-        cursorCtx.save();
-        cursorCtx.beginPath();
-        cursorCtx.strokeStyle = c.color;
-        cursorCtx.lineWidth = 1.5;
-        cursorCtx.arc(x, y, 6, 0, Math.PI * 2);
-        cursorCtx.stroke();
-        cursorCtx.restore();
-
-        // username label
-        cursorCtx.save();
-        cursorCtx.font = "12px sans-serif";
-        cursorCtx.fillStyle = c.color;
-        cursorCtx.strokeStyle = "#ffffff";
-        cursorCtx.lineWidth = 3;
-        cursorCtx.textBaseline = "top";
-
-        const text = c.username || "Player";
-
-        cursorCtx.strokeText(text, x + 10, y + 8);
-        cursorCtx.fillText(text, x + 10, y + 8);
-        cursorCtx.restore();
-      });
-    }
-
-    function updateLocalCursor(x, y) {
-      const id = pubnub.getUUID();
-      cursors[id] = {
-        x,
-        y,
-        username,
-        color: myColor,
-        lastSeen: Date.now()
-      };
-
-      sendMessage({
-        type: "cursor",
-        x,
-        y,
-        username,
-        color: myColor
-      });
-
-      drawCursors();
-    }
-
-    // ====== MOUSE EVENTS ======
     drawCanvas.addEventListener("mousedown", (e) => {
-      if (!username) return;
+      if (!username || !ROOM_CHANNEL) return;
       isDrawing = true;
       const pos = getOffsetPos(e);
       lastX = pos.x;
@@ -378,11 +865,9 @@
     });
 
     drawCanvas.addEventListener("mousemove", (e) => {
-      if (!username) return;
+      if (!username || !ROOM_CHANNEL) return;
       const pos = getOffsetPos(e);
-
       updateLocalCursor(pos.x, pos.y);
-
       if (!isDrawing) return;
 
       drawSegment({
@@ -403,9 +888,8 @@
       drawCanvas.addEventListener(ev, () => { isDrawing = false; })
     );
 
-    // ====== TOUCH SUPPORT ======
     drawCanvas.addEventListener("touchstart", (e) => {
-      if (!username) return;
+      if (!username || !ROOM_CHANNEL) return;
       e.preventDefault();
       isDrawing = true;
       const touch = e.touches[0];
@@ -416,13 +900,11 @@
     }, { passive: false });
 
     drawCanvas.addEventListener("touchmove", (e) => {
-      if (!username) return;
+      if (!username || !ROOM_CHANNEL) return;
       e.preventDefault();
       const touch = e.touches[0];
       const pos = getOffsetPos(touch);
-
       updateLocalCursor(pos.x, pos.y);
-
       if (!isDrawing) return;
 
       drawSegment({
@@ -443,46 +925,93 @@
       isDrawing = false;
     });
 
-    // ====== PUBNUB ======
-    function sendMessage(msg) {
-      pubnub.publish({
-        channel,
-        message: msg
-      });
-    }
-
+    // ====== PUBNUB LISTENER ======
     pubnub.addListener({
       message: (event) => {
         const msg = event.message;
 
-        if (msg.type === "stroke") {
-          drawSegment(msg, true);
-        } else if (msg.type === "clear") {
-          clearDrawCanvas();
-        } else if (msg.type === "cursor") {
-          const id = event.publisher || event.timetoken || "remote";
-          cursors[id] = {
-            x: msg.x,
-            y: msg.y,
-            username: msg.username || "Player",
-            color: msg.color || "#ff4757",
-            lastSeen: Date.now()
-          };
-          drawCursors();
+        // Lobby messages
+        if (event.channel === LOBBY_CHANNEL) {
+          if (msg.type === "room-create" && msg.room) {
+            if (!rooms[msg.room]) {
+              rooms[msg.room] = { createdBy: msg.createdBy || "someone", createdAt: Date.now() };
+              renderRoomList();
+            }
+          }
+          // ignore other lobby messages for now
+          return;
         }
+
+        // Room messages
+        if (ROOM_CHANNEL && event.channel === ROOM_CHANNEL) {
+          if (msg.type === "stroke") {
+            drawSegment(msg, true);
+          } else if (msg.type === "clear") {
+            clearDrawCanvas();
+          } else if (msg.type === "cursor") {
+            const id = event.publisher || event.timetoken || "remote";
+            cursors[id] = {
+              x: msg.x,
+              y: msg.y,
+              username: msg.username || "Player",
+              color: msg.color || "#ff4757",
+              size: msg.size || 4,
+              lastSeen: Date.now()
+            };
+            drawCursors();
+          } else if (msg.type === "chat") {
+            if (msg.username !== username) {
+              addChatMessage(msg.username, msg.text, false, msg.color || "#f5f5f5");
+            }
+          } else if (msg.type === "join") {
+            if (msg.username !== username) {
+              addChatMessage("System", msg.username + " joined the room.", true);
+            }
+          } else if (msg.type === "reaction") {
+            // Everyone sees floating emoji
+            spawnFloatingEmoji(msg.emoji || "✨");
+          }
+        }
+      },
+      presence: (event) => {
+        // Presence is only for room channel
+        if (!ROOM_CHANNEL || event.channel !== ROOM_CHANNEL) return;
+        const uuid = event.uuid;
+        if (event.action === "join" || event.action === "state-change") {
+          if (!onlineUsers[uuid]) {
+            onlineUsers[uuid] = { username: uuid, color: randomNiceColor() };
+          }
+        } else if (event.action === "leave" || event.action === "timeout") {
+          delete onlineUsers[uuid];
+        }
+        renderOnlineList();
       },
       status: (s) => {
         if (s.category === "PNConnectedCategory") {
-          if (!username) {
-            info.textContent = "Enter a username to start.";
-          } else {
-            info.textContent = "Connected! Share this page URL with friends.";
+          if (s.affectedChannels && s.affectedChannels.includes(LOBBY_CHANNEL)) {
+            // Connected to lobby
+            info.textContent = "In lobby. Choose or create a room.";
+          } else if (ROOM_CHANNEL && s.affectedChannels && s.affectedChannels.includes(ROOM_CHANNEL)) {
+            // Connected to room
+            info.textContent = "Connected to room.";
+            // Snapshot presence for this room
+            pubnub.hereNow(
+              { channels: [ROOM_CHANNEL], includeUUIDs: true, includeState: false },
+              (status, response) => {
+                if (!response || !response.channels || !response.channels[ROOM_CHANNEL]) return;
+                const occupants = response.channels[ROOM_CHANNEL].occupants || [];
+                occupants.forEach(o => {
+                  if (!onlineUsers[o.uuid]) {
+                    onlineUsers[o.uuid] = { username: o.uuid, color: randomNiceColor() };
+                  }
+                });
+                renderOnlineList();
+              }
+            );
           }
         }
       }
     });
-
-    pubnub.subscribe({ channels: [channel] });
   </script>
 </body>
 </html>
