@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Diddy Arena
+  </title>
+  <script src="https://cdn.jsdelivr.net/npm/pubnub@7.5.0/dist/web/pubnub.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #05040a;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      color: #fdfdfd;
+    }
+    #root {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #gameCanvas {
+      border-radius: 20px;
+      background: #05040a;
+      box-shadow: 0 40px 90px rgba(0,0,0,0.9);
+    }
+
+    #overlayUI {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #loginOverlay {
+      pointer-events: auto;
+      background: radial-gradient(circle at top left, #14122b 0, #070612 60%);
+      border-radius: 18px;
+      padding: 20px 24px;
+      min-width: 260px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 22px 55px rgba(0,0,0,0.95);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #title {
+      font-size: 20px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #ffedff;
+    }
+    #subtitle {
+      font-size: 12px;
+      color: #b2b4da;
+      margin-bottom: 2px;
+    }
+    #usernameInput {
+      width: 100%;
+      padding: 8px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(8,9,22,0.95);
+      color: #ffffff;
+      font-size: 13px;
+      outline: none;
+      transition: border 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    #usernameInput::placeholder {
+      color: #7075a5;
+    }
+    #usernameInput:focus {
+      border-color: #ff9f43;
+      box-shadow: 0 0 0 1px rgba(255,159,67,0.7);
+      background: rgba(10,11,28,1);
+    }
+    #joinBtn {
+      margin-top: 4px;
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ff9f43, #e84393);
+      color: #05040a;
+      cursor: pointer;
+      box-shadow: 0 16px 38px rgba(0,0,0,0.9);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+    }
+    #joinBtn:hover {
+      filter: brightness(1.05);
+      box-shadow: 0 20px 55px rgba(0,0,0,1);
+    }
+    #joinBtn:active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.9);
+    }
+
+    #hud {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    #hudCard {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(10,10,25,0.95), rgba(16,12,40,0.98));
+      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.85);
+      font-size: 12px;
+    }
+    #hudDot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      box-shadow: 0 0 12px currentColor;
+    }
+    #hudName {
+      font-weight: 600;
+      color: #ffffff;
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #hudHPLabel {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: #9fa3d6;
+    }
+    #hudHPBar {
+      position: relative;
+      width: 130px;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      overflow: hidden;
+    }
+    #hudHPFill {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
+      transform-origin: left center;
+      transform: scaleX(1);
+      transition: transform 0.12s ease;
+    }
+    #hudDash {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      align-items: flex-start;
+    }
+    #dashLabel {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #9fa3d6;
+    }
+    #dashBarOuter {
+      width: 60px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      overflow: hidden;
+    }
+    #dashBarInner {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #00cec9, #ff9f43);
+      transform-origin: left center;
+      transform: scaleX(1);
+      transition: transform 0.15s ease;
+    }
+
+    #leaderboard {
+      position: absolute;
+      left: 12px;
+      top: 10px;
+      pointer-events: none;
+      font-size: 11px;
+      color: #e5e8ff;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    #leaderboardCard {
+      background: linear-gradient(135deg, rgba(10,10,25,0.96), rgba(5,5,15,0.98));
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.9);
+      padding: 7px 10px 8px;
+      min-width: 170px;
+      max-width: 220px;
+    }
+    #leaderboardTitle {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #ff9f43;
+      margin-bottom: 4px;
+    }
+    .lb-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 0;
+    }
+    .lb-name {
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #ffffff;
+    }
+    .lb-score {
+      color: #d0d4ff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #killfeed {
+      position: absolute;
+      right: 12px;
+      top: 10px;
+      width: 230px;
+      pointer-events: none;
+      font-size: 11px;
+      color: #ffffff;
+    }
+    .killfeed-entry {
+      margin-top: 3px;
+      padding: 4px 7px;
+      border-radius: 10px;
+      background: rgba(8,7,18,0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.9);
+      opacity: 0.98;
+      transform: translateY(0);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .killfeed-entry.fade {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    .killfeed-killer { color: #00e6ff; font-weight: 500; }
+    .killfeed-victim { color: #ff8ed4; font-weight: 500; }
+
+    #hint {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #c4c7ff;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+    <div id="overlayUI">
+      <div id="loginOverlay">
+        <div id="title">Diddy Arena</div>
+        <div id="subtitle">Shoot drops of nuh at each toher</div>
+        <input id="usernameInput" type="text" maxlength="16" placeholder="username" />
+        <button id="joinBtn">Drop In</button>
+      </div>
+    </div>
+
+    <div id="hud">
+      <div id="hudCard">
+        <div id="hudDot"></div>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span id="hudName">Player</span>
+          <span id="hudHPLabel">Health</span>
+          <div id="hudHPBar"><div id="hudHPFill"></div></div>
+        </div>
+        <div id="hudDash">
+          <span id="dashLabel">Dash</span>
+          <div id="dashBarOuter"><div id="dashBarInner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="leaderboard">
+      <div id="leaderboardCard">
+        <div id="leaderboardTitle">Lobby</div>
+        <div id="leaderboardBody"></div>
+      </div>
+    </div>
+
+    <div id="killfeed"></div>
+    <div id="hint">Match live</div>
+  </div>
+
+  <script>
+    const ROOM_CHANNEL = "drift-arena-room-1";
+
+    const pubnub = new PubNub({
+      publishKey:   "pub-c-fc766aca-9661-4f55-bc9a-667c55e2b5c1",
+      subscribeKey: "sub-c-1dd042db-ecfa-47ad-8d2c-4ecb39394c0b",
+      uuid: "anon_" + Math.floor(Math.random() * 1e9)
+    });
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const loginOverlay = document.getElementById("loginOverlay");
+    const usernameInput = document.getElementById("usernameInput");
+    const joinBtn = document.getElementById("joinBtn");
+
+    const hud = document.getElementById("hud");
+    const hudName = document.getElementById("hudName");
+    const hudDot = document.getElementById("hudDot");
+    const hudHPFill = document.getElementById("hudHPFill");
+    const dashBarInner = document.getElementById("dashBarInner");
+
+    const leaderboard = document.getElementById("leaderboard");
+    const leaderboardBody = document.getElementById("leaderboardBody");
+
+    const killfeedEl = document.getElementById("killfeed");
+    const hintEl = document.getElementById("hint");
+
+    const PLAYER_SIZE = 24;
+    const MAX_HEALTH = 100;
+    const BULLET_SPEED = 7.5;
+    const BULLET_RADIUS = 4;
+    const BULLET_DAMAGE = 25;
+    const BULLET_RANGE = 380;
+    const FIRE_COOLDOWN_MS = 160;
+    const MAX_BULLETS_PER_PLAYER = 5;
+
+    const ACCEL = 0.65;
+    const FRICTION = 0.82;
+    const MAX_SPEED = 4.3;
+
+    const DASH_SPEED = 8.5;
+    const DASH_DURATION = 120;
+    const DASH_COOLDOWN = 1400;
+
+    let username = null;
+    let myUUID = pubnub.getUUID();
+
+    function randomNiceColor() {
+      const colors = [
+        "#ff7675","#74b9ff","#55efc4","#ffeaa7","#fd79a8",
+        "#a29bfe","#00cec9","#fab1a0","#e17055","#ff9f43"
+      ];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    let players = {};
+    let bullets = {};
+    let damagePopups = [];
+
+    const keys = { up:false, down:false, left:false, right:false, dash:false };
+    let mouseX = canvas.width / 2;
+    let mouseY = canvas.height / 2;
+    let lastFireTime = 0;
+    let lastStateSent = 0;
+
+    function spawnPlayer(uuid, name, color) {
+      const startX = Math.random() * (canvas.width - PLAYER_SIZE - 80) + 40;
+      const startY = Math.random() * (canvas.height - PLAYER_SIZE - 80) + 40;
+      players[uuid] = {
+        uuid,
+        username: name || "Player",
+        x: startX,
+        y: startY,
+        vx: 0,
+        vy: 0,
+        color: color || randomNiceColor(),
+        health: MAX_HEALTH,
+        kills: 0,
+        deaths: 0,
+        lastSeen: performance.now(),
+        dashActive: false,
+        dashEndTime: 0,
+        nextDashTime: 0,
+        fromX: startX,
+        fromY: startY,
+        toX: startX,
+        toY: startY,
+        lerpStart: performance.now(),
+        lerpDuration: 0
+      };
+    }
+
+    function respawnPlayer(p) {
+      const newX = Math.random() * (canvas.width - PLAYER_SIZE - 80) + 40;
+      const newY = Math.random() * (canvas.height - PLAYER_SIZE - 80) + 40;
+      p.x = newX;
+      p.y = newY;
+      p.vx = 0;
+      p.vy = 0;
+      p.health = MAX_HEALTH;
+      p.dashActive = false;
+      p.dashEndTime = 0;
+      p.fromX = newX;
+      p.fromY = newY;
+      p.toX = newX;
+      p.toY = newY;
+      p.lerpStart = performance.now();
+      p.lerpDuration = 0;
+      p.lastSeen = performance.now();
+    }
+
+    function publishState() {
+      if (!username) return;
+      const me = players[myUUID];
+      if (!me) return;
+      pubnub.publish({
+        channel: ROOM_CHANNEL,
+        message: {
+          type: "state",
+          uuid: myUUID,
+          username: me.username,
+          x: me.x,
+          y: me.y,
+          color: me.color,
+          health: me.health,
+          kills: me.kills,
+          deaths: me.deaths
+        }
+      });
+    }
+
+    function publishStateThrottled() {
+      const now = performance.now();
+      if (now - lastStateSent < 50) return;
+      lastStateSent = now;
+      publishState();
+    }
+
+    function addKillfeedEntry(killerName, victimName) {
+      const entry = document.createElement("div");
+      entry.className = "killfeed-entry";
+      entry.innerHTML = `<span class="killfeed-killer">${killerName}</span> → <span class="killfeed-victim">${victimName}</span>`;
+      killfeedEl.appendChild(entry);
+
+      setTimeout(() => {
+        entry.classList.add("fade");
+        setTimeout(() => {
+          if (entry.parentNode) entry.parentNode.removeChild(entry);
+        }, 600);
+      }, 2800);
+    }
+
+    function addDamagePopup(x, y, amount) {
+      damagePopups.push({
+        x,
+        y,
+        text: "-" + amount,
+        life: 0,
+        maxLife: 450
+      });
+    }
+
+    function updateDamagePopups(dt) {
+      damagePopups.forEach(p => {
+        p.life += dt;
+        p.y -= dt * 0.02;
+      });
+      damagePopups = damagePopups.filter(p => p.life < p.maxLife);
+    }
+
+    function drawDamagePopups() {
+      ctx.font = "11px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      damagePopups.forEach(p => {
+        const t = p.life / p.maxLife;
+        const alpha = 1 - t;
+        ctx.fillStyle = "rgba(255, 99, 132," + alpha.toFixed(3) + ")";
+        ctx.fillText(p.text, p.x, p.y);
+      });
+    }
+
+    function joinWithName() {
+      const name = usernameInput.value.trim() || "Player";
+      username = name;
+
+      const newId = "user_" + name + "_" + Math.floor(Math.random() * 1e5);
+      pubnub.setUUID(newId);
+      myUUID = newId;
+
+      loginOverlay.style.display = "none";
+      hud.style.opacity = 1;
+      leaderboard.style.opacity = 1;
+      hintEl.style.opacity = 1;
+
+      spawnPlayer(myUUID, username, randomNiceColor());
+      hudName.textContent = username;
+      hudDot.style.color = players[myUUID].color;
+
+      pubnub.subscribe({ channels: [ROOM_CHANNEL], withPresence: true });
+      publishState();
+    }
+
+    joinBtn.addEventListener("click", joinWithName);
+    usernameInput.addEventListener("keydown", e => {
+      if (e.key === "Enter") joinWithName();
+    });
+
+    canvas.addEventListener("mousemove", e => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener("mousedown", () => {
+      tryFireBullet();
+    });
+
+    window.addEventListener("keydown", e => {
+      if (!username) return;
+      if (["ArrowUp","w","W"].includes(e.key)) keys.up = true;
+      if (["ArrowDown","s","S"].includes(e.key)) keys.down = true;
+      if (["ArrowLeft","a","A"].includes(e.key)) keys.left = true;
+      if (["ArrowRight","d","D"].includes(e.key)) keys.right = true;
+      if (e.key === "Shift") {
+        keys.dash = true;
+        tryDash();
+      }
+    });
+    window.addEventListener("keyup", e => {
+      if (!username) return;
+      if (["ArrowUp","w","W"].includes(e.key)) keys.up = false;
+      if (["ArrowDown","s","S"].includes(e.key)) keys.down = false;
+      if (["ArrowLeft","a","A"].includes(e.key)) keys.left = false;
+      if (["ArrowRight","d","D"].includes(e.key)) keys.right = false;
+      if (e.key === "Shift") keys.dash = false;
+    });
+
+    function countBulletsFor(ownerId) {
+      let n = 0;
+      Object.values(bullets).forEach(b => {
+        if (b.alive && b.ownerId === ownerId) n++;
+      });
+      return n;
+    }
+
+    function tryFireBullet() {
+      const now = performance.now();
+      if (now - lastFireTime < FIRE_COOLDOWN_MS) return;
+      const me = players[myUUID];
+      if (!me || me.health <= 0) return;
+      if (countBulletsFor(myUUID) >= MAX_BULLETS_PER_PLAYER) return;
+
+      lastFireTime = now;
+
+      const centerX = me.x + PLAYER_SIZE / 2;
+      const centerY = me.y + PLAYER_SIZE / 2;
+      let dx = mouseX - centerX;
+      let dy = mouseY - centerY;
+      let len = Math.hypot(dx, dy) || 1;
+      dx /= len;
+      dy /= len;
+
+      const nearest = findNearestEnemyOnLine(centerX, centerY, dx, dy);
+      if (nearest) {
+        const ex = nearest.x + PLAYER_SIZE / 2;
+        const ey = nearest.y + PLAYER_SIZE / 2;
+        let ndx = ex - centerX;
+        let ndy = ey - centerY;
+        let nlen = Math.hypot(ndx, ndy) || 1;
+        ndx /= nlen;
+        ndy /= nlen;
+        const MIX = 0.2;
+        dx = dx * (1 - MIX) + ndx * MIX;
+        dy = dy * (1 - MIX) + ndy * MIX;
+        const fLen = Math.hypot(dx, dy) || 1;
+        dx /= fLen; dy /= fLen;
+      }
+
+      const vx = dx * BULLET_SPEED;
+      const vy = dy * BULLET_SPEED;
+
+      const bulletId = "b_" + myUUID + "_" + Date.now() + "_" + Math.floor(Math.random() * 1e5);
+      pubnub.publish({
+        channel: ROOM_CHANNEL,
+        message: {
+          type: "bullet-spawn",
+          id: bulletId,
+          ownerId: myUUID,
+          x: centerX,
+          y: centerY,
+          vx,
+          vy
+        }
+      });
+
+      spawnBullet(bulletId, myUUID, centerX, centerY, vx, vy);
+    }
+
+    function findNearestEnemyOnLine(startX, startY, dirX, dirY) {
+      let nearest = null;
+      let nearestDist = Infinity;
+      Object.values(players).forEach(p => {
+        if (!p || p.uuid === myUUID || p.health <= 0) return;
+
+        const ex = p.x + PLAYER_SIZE / 2;
+        const ey = p.y + PLAYER_SIZE / 2;
+
+        const vx = ex - startX;
+        const vy = ey - startY;
+        const t = vx * dirX + vy * dirY;
+        if (t < 0 || t > BULLET_RANGE) return;
+
+        const projX = startX + dirX * t;
+        const projY = startY + dirY * t;
+        const distToLine = Math.hypot(ex - projX, ey - projY);
+        if (distToLine < 40 && t < nearestDist) {
+          nearestDist = t;
+          nearest = p;
+        }
+      });
+      return nearest;
+    }
+
+    function spawnBullet(id, ownerId, x, y, vx, vy) {
+      bullets[id] = {
+        id,
+        ownerId,
+        x,
+        y,
+        vx,
+        vy,
+        alive: true,
+        distance: 0,
+        trail: []
+      };
+    }
+
+    function tryDash() {
+      const me = players[myUUID];
+      if (!me || me.health <= 0) return;
+      const now = performance.now();
+      if (now < me.nextDashTime) return;
+
+      let dx = 0;
+      let dy = 0;
+      if (keys.up) dy -= 1;
+      if (keys.down) dy += 1;
+      if (keys.left) dx -= 1;
+      if (keys.right) dx += 1;
+      const len = Math.hypot(dx, dy);
+      if (!len) return;
+
+      dx /= len;
+      dy /= len;
+
+      me.vx = dx * DASH_SPEED;
+      me.vy = dy * DASH_SPEED;
+      me.dashActive = true;
+      me.dashEndTime = now + DASH_DURATION;
+      me.nextDashTime = now + DASH_COOLDOWN;
+    }
+
+    function updateDash(p) {
+      const now = performance.now();
+      if (p.dashActive && now >= p.dashEndTime) {
+        p.dashActive = false;
+      }
+      const remaining = Math.max(0, p.nextDashTime - now);
+      const ratio = 1 - Math.min(1, remaining / DASH_COOLDOWN);
+      if (p.uuid === myUUID) {
+        dashBarInner.style.transform = "scaleX(" + ratio.toFixed(3) + ")";
+      }
+    }
+
+    function updateHUD() {
+      const me = players[myUUID];
+      if (!me) return;
+      const ratio = me.health / MAX_HEALTH;
+      hudHPFill.style.transform = "scaleX(" + Math.max(0, Math.min(1, ratio)).toFixed(3) + ")";
+    }
+
+    function updateLeaderboard() {
+      const list = Object.values(players).slice().sort((a, b) => (b.kills || 0) - (a.kills || 0));
+      leaderboardBody.innerHTML = "";
+      list.forEach(p => {
+        const row = document.createElement("div");
+        row.className = "lb-row";
+        const nameEl = document.createElement("span");
+        nameEl.className = "lb-name";
+        nameEl.textContent = p.username;
+        const scoreEl = document.createElement("span");
+        scoreEl.className = "lb-score";
+        scoreEl.textContent = (p.kills || 0) + " / " + (p.deaths || 0);
+        row.appendChild(nameEl);
+        row.appendChild(scoreEl);
+        leaderboardBody.appendChild(row);
+      });
+    }
+
+    pubnub.addListener({
+  message: event => {
+    const msg = event.message;
+    if (event.channel !== ROOM_CHANNEL) return;
+
+    if (msg.type === "state") {
+      const { uuid, username, x, y, color, health, kills, deaths } = msg;
+      if (!uuid) return;
+      if (!players[uuid]) {
+        spawnPlayer(uuid, username, color);
+      }
+      const p = players[uuid];
+      p.username = username || p.username;
+      p.color = color || p.color;
+
+      if (uuid !== myUUID) {
+        // ONLY interpolate other players
+        const nx = x || 0;
+        const ny = y || 0;
+        p.fromX = (typeof p.x === "number") ? p.x : nx;
+        p.fromY = (typeof p.y === "number") ? p.y : ny;
+        p.toX = nx;
+        p.toY = ny;
+        p.lerpStart = performance.now();
+        p.lerpDuration = 110;
+
+        if (typeof health === "number") p.health = health;
+        if (typeof kills === "number") p.kills = kills;
+        if (typeof deaths === "number") p.deaths = deaths;
+      } else {
+        // For your own player, ONLY trust local simulation for x/y
+        // but you can still copy kills/deaths/health if you want.
+        if (typeof health === "number") p.health = health;
+        if (typeof kills === "number") p.kills = kills;
+        if (typeof deaths === "number") p.deaths = deaths;
+      }
+      p.lastSeen = performance.now();
+    } else if (msg.type === "bullet-spawn") {
+      spawnBullet(msg.id, msg.ownerId, msg.x, msg.y, msg.vx, msg.vy);
+    } else if (msg.type === "kill") {
+      const killerName = msg.killerName || "Player";
+      const victimName = msg.victimName || "Player";
+      addKillfeedEntry(killerName, victimName);
+    }
+  },
+  status: s => {
+    if (s.category === "PNConnectedCategory") {
+      console.log("Connected to", ROOM_CHANNEL);
+    }
+  }
+});
+
+
+    let lastTime = performance.now();
+    function loop(now) {
+      const dt = now - lastTime;
+      lastTime = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function update(dt) {
+      const me = players[myUUID];
+      if (me && me.health > 0) {
+        if (!me.dashActive) {
+          if (keys.up) me.vy -= ACCEL;
+          if (keys.down) me.vy += ACCEL;
+          if (keys.left) me.vx -= ACCEL;
+          if (keys.right) me.vx += ACCEL;
+        }
+
+        me.vx *= FRICTION;
+        me.vy *= FRICTION;
+
+        const spd = Math.hypot(me.vx, me.vy);
+        if (spd > MAX_SPEED && !me.dashActive) {
+          me.vx = (me.vx / spd) * MAX_SPEED;
+          me.vy = (me.vy / spd) * MAX_SPEED;
+        }
+
+        me.x += me.vx;
+        me.y += me.vy;
+
+        me.x = Math.max(40, Math.min(canvas.width - PLAYER_SIZE - 40, me.x));
+        me.y = Math.max(40, Math.min(canvas.height - PLAYER_SIZE - 40, me.y));
+
+        me.lastSeen = performance.now();
+
+        publishStateThrottled();
+        updateDash(me);
+        updateHUD();
+      }
+
+      Object.values(players).forEach(p => {
+        if (p.uuid !== myUUID) {
+          updateDash(p);
+          const now = performance.now();
+          if (p.lerpDuration > 0) {
+            const t = Math.min(1, (now - p.lerpStart) / p.lerpDuration);
+            const smoothT = t * t * (3 - 2 * t);
+            p.x = p.fromX + (p.toX - p.fromX) * smoothT;
+            p.y = p.fromY + (p.toY - p.fromY) * smoothT;
+          }
+        }
+      });
+
+      Object.values(bullets).forEach(b => {
+        if (!b.alive) return;
+        b.trail.push({ x: b.x, y: b.y, t: performance.now() });
+        if (b.trail.length > 10) b.trail.shift();
+
+        b.x += b.vx;
+        b.y += b.vy;
+        b.distance += BULLET_SPEED;
+        if (
+          b.distance > BULLET_RANGE ||
+          b.x < -60 || b.x > canvas.width + 60 ||
+          b.y < -60 || b.y > canvas.height + 60
+        ) {
+          b.alive = false;
+          return;
+        }
+
+        Object.values(players).forEach(p => {
+          if (!p || p.health <= 0) return;
+          if (p.uuid === b.ownerId) return;
+
+          const closestX = Math.max(p.x, Math.min(b.x, p.x + PLAYER_SIZE));
+          const closestY = Math.max(p.y, Math.min(b.y, p.y + PLAYER_SIZE));
+          const dist = Math.hypot(b.x - closestX, b.y - closestY);
+          if (dist <= BULLET_RADIUS) {
+            b.alive = false;
+            p.health = Math.max(0, p.health - BULLET_DAMAGE);
+            p.lastSeen = performance.now();
+            addDamagePopup(closestX, closestY, BULLET_DAMAGE);
+
+            if (p.health <= 0) {
+              p.deaths = (p.deaths || 0) + 1;
+              const killer = players[b.ownerId];
+              if (killer) {
+                killer.kills = (killer.kills || 0) + 1;
+                pubnub.publish({
+                  channel: ROOM_CHANNEL,
+                  message: {
+                    type: "kill",
+                    killerName: killer.username,
+                    victimName: p.username
+                  }
+                });
+              }
+              respawnPlayer(p);
+              if (p.uuid === myUUID || (killer && killer.uuid === myUUID)) {
+                publishState();
+              }
+            } else if (p.uuid === myUUID) {
+              publishState();
+            }
+          }
+        });
+      });
+
+      Object.keys(bullets).forEach(id => {
+        if (!bullets[id].alive) delete bullets[id];
+      });
+
+      updateDamagePopups(dt);
+      updateLeaderboard();
+    }
+
+    function drawBackground() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const grad = ctx.createRadialGradient(
+        canvas.width * 0.5, canvas.height * 0.3, 0,
+        canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.9
+      );
+      grad.addColorStop(0, "#181524");
+      grad.addColorStop(1, "#05040a");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= canvas.width; x += 80) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += 80) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+    }
+
+    function drawPlayers() {
+      const now = performance.now();
+      Object.values(players).forEach(p => {
+        const isMe = p.uuid === myUUID;
+
+        const sx = p.x;
+        const sy = p.y;
+
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0," + (isMe ? 0.9 : 0.7) + ")";
+        ctx.shadowBlur = isMe ? 18 : 12;
+        ctx.shadowOffsetY = 4;
+
+        ctx.fillStyle = p.color;
+        const pulse = isMe ? (Math.sin(now / 220) * 0.5 + 0.5) * 3 : 0;
+        const size = PLAYER_SIZE + (isMe ? pulse : 0);
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(
+            sx - (isMe ? pulse / 2 : 0),
+            sy - (isMe ? pulse / 2 : 0),
+            size,
+            size,
+            6
+          );
+        } else {
+          ctx.rect(
+            sx - (isMe ? pulse / 2 : 0),
+            sy - (isMe ? pulse / 2 : 0),
+            size,
+            size
+          );
+        }
+        ctx.fill();
+        ctx.restore();
+
+        if (isMe && p.dashActive) {
+          ctx.save();
+          ctx.strokeStyle = "rgba(255, 159, 67, 0.9)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(
+              sx - 4,
+              sy - 4,
+              PLAYER_SIZE + 8,
+              PLAYER_SIZE + 8,
+              10
+            );
+          } else {
+            ctx.rect(
+              sx - 4,
+              sy - 4,
+              PLAYER_SIZE + 8,
+              PLAYER_SIZE + 8
+            );
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.font = "11px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(p.username, sx + PLAYER_SIZE / 2, sy - 4);
+
+        const barWidth = PLAYER_SIZE;
+        const barHeight = 4;
+        const hpRatio = p.health / MAX_HEALTH;
+        const barX = sx;
+        const barY = sy + PLAYER_SIZE + 4;
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = hpRatio > 0.5 ? "#2ecc71" : (hpRatio > 0.2 ? "#f1c40f" : "#e74c3c");
+        ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+      });
+    }
+
+    function drawBullets() {
+      const now = performance.now();
+      Object.values(bullets).forEach(b => {
+        if (!b.alive) return;
+
+        const len = b.trail.length;
+        for (let i = 0; i < len; i++) {
+          const point = b.trail[i];
+          const age = now - point.t;
+          const t = Math.max(0, Math.min(1, age / 250));
+          const alpha = (1 - t) * 0.6;
+          ctx.fillStyle = "rgba(255,255,255," + alpha.toFixed(3) + ")";
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, BULLET_RADIUS - 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, BULLET_RADIUS + 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function draw() {
+      drawBackground();
+      drawBullets();
+      drawPlayers();
+      drawDamagePopups();
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
