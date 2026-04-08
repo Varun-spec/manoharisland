@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rohan Night – Final</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #0f0;
+      font-family: "Courier New", monospace;
+      overflow: hidden;
+    }
+    #game {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #050505 0%, #000 65%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Global vignette and grain */
+    #vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background:
+        radial-gradient(circle at center, transparent 0%, transparent 40%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.95) 100%);
+      mix-blend-mode: multiply;
+    }
+    #grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 99;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 90' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='noStitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.25'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.9'/%3E%3C/svg%3E");
+      opacity: 0.25;
+      mix-blend-mode: soft-light;
+      animation: grainMove 1.8s steps(3) infinite;
+    }
+    @keyframes grainMove {
+      0%   { transform: translate(0,0); }
+      50%  { transform: translate(-10px, 5px); }
+      100% { transform: translate(0,0); }
+    }
+
+    #office {
+      width: 1100px;
+      height: 620px;
+      border: 3px solid #0f0;
+      background: url("office.png") center/cover no-repeat;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 25px rgba(0,255,0,0.35), 0 0 80px #000;
+    }
+
+    #doorPanel {
+      position: absolute;
+      left: 30px;
+      top: 180px;
+      width: 120px;
+      height: 220px;
+      border: 2px solid #0f0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      z-index: 8;
+      box-shadow: 0 0 10px rgba(0,255,0,0.4);
+    }
+    #doorLabel {
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+    #doorSwitch {
+      width: 70px;
+      height: 100px;
+      border: 2px solid #0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      user-select: none;
+      background: radial-gradient(circle at 50% 20%, #333 0%, #000 70%);
+      text-shadow: 0 0 4px #000;
+    }
+
+    /* Sliding door blocks (elevator-style) */
+    #doorBlockLeft,
+    #doorBlockRight {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 140px;
+      background: radial-gradient(circle at center, #111 0%, #000 70%);
+      border-right: 2px solid #050;
+      border-left: 2px solid #050;
+      box-shadow: inset 0 0 15px #000;
+      z-index: 7;
+      transition: transform 0.5s ease-in-out;
+    }
+    #doorBlockLeft {
+      left: 0;
+      transform: translateX(-100%);
+    }
+    #doorBlockRight {
+      left: 140px;
+      transform: translateX(100%);
+    }
+    #office.doorClosed #doorBlockLeft {
+      transform: translateX(0);
+    }
+    #office.doorClosed #doorBlockRight {
+      transform: translateX(0);
+    }
+
+    /* Rohan behind monitor */
+    #rohanBehind {
+      position: absolute;
+      left: 50%;
+      top: 60px;
+      transform: translateX(-50%);
+      width: 760px;
+      height: 440px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 4;
+      overflow: hidden;
+      filter: contrast(1.1) saturate(0.9);
+    }
+    #rohanBehind img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Bigger, scarier monitor */
+    #monitor {
+      position: absolute;
+      left: 50%;
+      top: 60px;
+      transform: translateX(-50%);
+      width: 780px;
+      height: 460px;
+      border: 3px solid #0f0;
+      background: radial-gradient(circle at center, #050505 0%, #000 80%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow:
+        0 0 20px rgba(0,255,0,0.8),
+        0 0 60px rgba(0,0,0,0.9);
+      z-index: 10;
+      overflow: hidden;
+    }
+    #monitor::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.08), transparent 40%, transparent 60%, rgba(0,0,0,0.6));
+      mix-blend-mode: soft-light;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    #camView {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    #camImage {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      position: absolute;
+      inset: 0;
+      display: none;
+      filter: contrast(1.1) grayscale(0.3);
+      background: #000;
+    }
+
+    /* Animated CRT static */
+    #camStaticOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          rgba(255,255,255,0.18),
+          rgba(255,255,255,0.18) 2px,
+          rgba(0,0,0,0.18) 2px,
+          rgba(0,0,0,0.18) 4px
+        );
+      mix-blend-mode: screen;
+      opacity: 0;
+      animation: staticNoise 0.25s steps(3) infinite;
+    }
+    @keyframes staticNoise {
+      0%   { transform: translate(0, 0); }
+      25%  { transform: translate(-3px, 2px); }
+      50%  { transform: translate(2px, -3px); }
+      75%  { transform: translate(-2px, -1px); }
+      100% { transform: translate(1px, 2px); }
+    }
+
+    /* Slight scanline */
+    #scanline {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 50%, transparent 100%);
+      mix-blend-mode: soft-light;
+      opacity: 0.16;
+      pointer-events: none;
+      z-index: 6;
+      animation: scanMove 3s linear infinite;
+    }
+    @keyframes scanMove {
+      0%   { transform: translateY(-100%); }
+      100% { transform: translateY(100%); }
+    }
+
+    /* MO on monitor */
+    #moScreen {
+      position: absolute;
+      inset: 0;
+      display: none;
+      z-index: 5;
+      pointer-events: none;
+      filter: drop-shadow(0 0 8px rgba(0,255,0,0.7));
+    }
+    #moScreen img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0.95;
+    }
+
+    #monitorBottom {
+      height: 80px;
+      border-top: 2px solid #0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      font-size: 12px;
+      position: relative;
+      background: linear-gradient(to top, #020402, #060d06);
+    }
+    #camInfo {
+      min-width: 160px;
+      letter-spacing: 0.5px;
+    }
+
+    #powerButton {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 6px;
+      padding: 4px 14px;
+      border: 1px solid #0f0;
+      background: radial-gradient(circle at 50% 15%, #333 0%, #000 60%);
+      cursor: pointer;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-shadow: 0 0 3px #000;
+    }
+    #powerButton.off {
+      background: radial-gradient(circle at 50% 15%, #500 0%, #000 60%);
+      color: #f88;
+      border-color: #f44;
+      box-shadow: 0 0 8px rgba(255,0,0,0.7);
+    }
+
+    #map {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      width: 200px;
+      height: 74px;
+      border: 1px solid #0f0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 2px;
+      padding: 2px;
+      background: rgba(0,0,0,0.7);
+      box-shadow: 0 0 8px rgba(0,255,0,0.4);
+    }
+    .mapNode {
+      border: 1px solid #0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      cursor: pointer;
+      user-select: none;
+      background: #050c05;
+      color: #0f0;
+      position: relative;
+      text-shadow: 0 0 3px #000;
+    }
+    .mapNode.activeCam {
+      background: #021a1a;
+      box-shadow: 0 0 6px rgba(0,255,255,0.6);
+    }
+
+    #hud {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      background: rgba(0,0,0,0.75);
+      border: 1px solid #0f0;
+      padding: 6px 10px;
+      font-size: 13px;
+      text-align: right;
+      z-index: 20;
+      box-shadow: 0 0 10px rgba(0,255,0,0.4);
+    }
+    #message {
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      min-width: 160px;
+      max-width: 280px;
+      background: rgba(0,0,0,0.75);
+      border: 1px solid #0f0;
+      padding: 6px 10px;
+      font-size: 13px;
+      color: #0f0;
+      z-index: 20;
+      box-shadow: 0 0 8px rgba(0,255,0,0.35);
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, #000 0%, #000 60%, #020202 100%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    #overlay img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* El Roberto random anywhere */
+    #elRobertoPeek {
+      position: absolute;
+      width: 120px;
+      height: 160px;
+      display: none;
+      cursor: pointer;
+      z-index: 35;
+      transform-origin: center;
+      filter: drop-shadow(0 0 10px rgba(255,0,0,0.6));
+    }
+    #elRobertoPeek img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* El Roberto notification on monitor */
+    #elRobertoPopup {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      background: rgba(0,0,0,0.92);
+      border: 2px solid #0f0;
+      padding: 12px;
+      z-index: 15;
+      display: none;
+      font-size: 13px;
+      box-shadow: 0 0 12px rgba(0,255,0,0.5);
+    }
+    #elRobertoPopup p {
+      margin: 6px 0;
+    }
+    #elRobertoButtons {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .popupBtn {
+      background: #111;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      text-shadow: 0 0 3px #000;
+    }
+    .popupBtn:hover {
+      background: #222;
+    }
+
+    /* MO hologram on right side – slow, smooth fade */
+    #moHolo {
+      position: absolute;
+      right: 40px;
+      top: 140px;
+      width: 200px;
+      height: 290px;
+      display: none;
+      opacity: 0;
+      z-index: 30;
+      pointer-events: none;
+      filter:
+        drop-shadow(0 0 12px rgba(0,255,255,0.8))
+        saturate(0.8);
+      mix-blend-mode: screen;
+    }
+    #moHolo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    button {
+      background: #111;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      text-shadow: 0 0 2px #000;
+    }
+    button:hover {
+      background: #222;
+    }
+    #resetBtn {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      z-index: 25;
+    }
+
+    /* Night transition (5:59 -> 6:00) */
+    #nightTransition {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #0f0;
+      font-size: 72px;
+      z-index: 40;
+      flex-direction: column;
+      gap: 10px;
+      text-shadow: 0 0 10px #0f0;
+    }
+    #nightTransition span {
+      font-family: monospace;
+    }
+
+    /* Jumpscare animations */
+    @keyframes screenSlideDown {
+      0%   { transform: translateX(-50%) translateY(0); }
+      100% { transform: translateX(-50%) translateY(120%); }
+    }
+    @keyframes rohanZoom {
+      0%   { transform: scale(1); }
+      100% { transform: scale(1.8); }
+    }
+    @keyframes elRobertoZoom {
+      0%   { transform: scale(1); }
+      100% { transform: scale(2.2); }
+    }
+    @keyframes moZoom {
+      0%   { transform: scale(1); }
+      100% { transform: scale(2.4); }
+    }
+  </style>
+</head>
+<body>
+<div id="game">
+  <div id="office">
+    <button id="resetBtn">Reset</button>
+
+    <div id="doorPanel">
+      <div id="doorLabel">DOOR CONTROL</div>
+      <div id="doorSwitch">OPEN</div>
+    </div>
+
+    <!-- Sliding door blocks -->
+    <div id="doorBlockLeft"></div>
+    <div id="doorBlockRight"></div>
+
+    <!-- Rohan behind monitor -->
+    <div id="rohanBehind">
+      <img src="Rohanpic.jpg" alt="Rohan behind monitor">
+    </div>
+
+    <!-- El Roberto peek (random position) -->
+    <div id="elRobertoPeek">
+      <img src="elroberto.png" alt="El Roberto">
+    </div>
+
+    <!-- MO hologram on right side -->
+    <div id="moHolo">
+      <img src="mo_holo.png" alt="MO hologram">
+    </div>
+
+    <div id="monitor">
+      <div id="camView">
+        <img id="camImage" alt="Camera view">
+        <div id="camStaticOverlay"></div>
+        <div id="scanline"></div>
+
+        <!-- MO screen overlay -->
+        <div id="moScreen">
+          <img src="mo_screen.png" alt="MO on screen">
+        </div>
+
+        <div id="elRobertoPopup">
+          <p><strong>El Roberto:</strong></p>
+          <p>Did you finish the chemistry workbook?</p>
+          <p id="elRobertoReply"></p>
+          <div id="elRobertoButtons"></div>
+        </div>
+      </div>
+
+      <div id="monitorBottom">
+        <div id="camInfo"></div>
+        <div id="map"></div>
+        <div id="powerButton">POWER: ON</div>
+      </div>
+    </div>
+
+    <div id="hud"></div>
+    <div id="message"></div>
+
+    <div id="overlay">
+      <img id="jumpscareImage" src="Rohanpic.jpg" alt="Jumpscare">
+    </div>
+
+    <div id="nightTransition">
+      <span id="transitionTime">05:59 AM</span>
+      <span id="transitionNight"></span>
+    </div>
+  </div>
+
+  <!-- Global vignette + grain -->
+  <div id="grain"></div>
+  <div id="vignette"></div>
+</div>
+
+<script>
+  // === CONFIG ===
+  const NIGHT_LENGTH_MINUTES = 1;
+  const TOTAL_NIGHTS = 5;
+  const TICK_MS = 1000;
+  const ROHAN_MOVE_CHANCE_PER_TICK = 0.15;
+
+  const BASE_IDLE_DRAIN = 0.1;
+  const BASE_DOOR_EXTRA_DRAIN = 2.0;
+  const BASE_COMPUTER_OFF_DRAIN = 0.00;
+  const POWER_INCREASE_PER_NIGHT = 0.10;
+
+  const CAM_GRAPH = {
+    0: [1],
+    1: [0, 2],
+    2: [1, 3],
+    3: [2, 4],
+    4: [3, 5],
+    5: [4]
+  };
+
+  const CAM_IMAGE_BASES = [
+    "kund",
+    "makerspace",
+    "basketballcourt",
+    "Gallery",
+    "footballgallery",
+    "footballfield"
+  ];
+
+  const HOURS_IN_NIGHT = 6;
+  const TOTAL_TICKS = Math.round((NIGHT_LENGTH_MINUTES * 60 * 1000) / TICK_MS);
+  const TICKS_PER_HOUR = TOTAL_TICKS / HOURS_IN_NIGHT;
+
+  let night = 1;
+
+  let currentCam = 0;
+  let rohanCam = 5;
+  let doorClosed = false;
+  let power = 100;
+  let gameOver = false;
+  let currentTick = 0;
+  let loopId = null;
+  let moving = false;
+  let computerOn = true;
+
+  // El Roberto
+  let elRobertoActive = false;
+  let elRobertoPopupVisible = false;
+  let elRobertoPunishTimer = null;
+  let elRobertoPeekVisible = false;
+  let lastElRobertoTime = -Infinity;
+
+  // MO
+  let moState = "idle"; // idle, screenShown, holoFading
+  let moHoloOpacity = 0;
+  let moHoloInterval = null;
+
+  // Tutorial
+  let tutorialTimer = null;
+
+  const office = document.getElementById("office");
+  const camStaticOverlay = document.getElementById("camStaticOverlay");
+  const camView = document.getElementById("camView");
+  const camInfo = document.getElementById("camInfo");
+  const camImage = document.getElementById("camImage");
+  const mapContainer = document.getElementById("map");
+  const doorSwitch = document.getElementById("doorSwitch");
+  const hud = document.getElementById("hud");
+  const msg = document.getElementById("message");
+  const overlay = document.getElementById("overlay");
+  const jumpscareImage = document.getElementById("jumpscareImage");
+  const resetBtn = document.getElementById("resetBtn");
+  const powerButton = document.getElementById("powerButton");
+  const elRobertoPeek = document.getElementById("elRobertoPeek");
+  const elRobertoPopup = document.getElementById("elRobertoPopup");
+  const elRobertoButtons = document.getElementById("elRobertoButtons");
+  const elRobertoReply = document.getElementById("elRobertoReply");
+  const nightTransition = document.getElementById("nightTransition");
+  const transitionTime = document.getElementById("transitionTime");
+  const transitionNight = document.getElementById("transitionNight");
+  const rohanBehind = document.getElementById("rohanBehind");
+  const rohanBehindImg = rohanBehind.querySelector("img");
+  const monitor = document.getElementById("monitor");
+  const moScreen = document.getElementById("moScreen");
+  const moHolo = document.getElementById("moHolo");
+
+  let mapNodes = [];
+
+  function timeFromTick(tick) {
+    const totalSeconds = NIGHT_LENGTH_MINUTES * 60;
+    const remainingSeconds = Math.max(0, totalSeconds - tick);
+    const mm = Math.floor(remainingSeconds / 60);
+    const ss = Math.floor(remainingSeconds % 60);
+    return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  }
+
+  function hourFromTick(tick) {
+    const hourFloat = 12 + (tick / TICKS_PER_HOUR);
+    return Math.min(6, Math.floor(hourFloat));
+  }
+
+  function setMessage(text, color = "#0f0", type = "generic") {
+    const isTutorial = (type === "tutorial");
+    const isFootstep = (type === "footstep");
+    // After night 3, ignore tutorial-type hint spam
+    if (night > 3 && isTutorial && !isFootstep) return;
+    msg.style.color = color;
+    msg.textContent = text;
+  }
+  function tutorial(text) {
+    setMessage(text, "#0f0", "tutorial");
+  }
+  function footstepMsg(text) {
+    setMessage(text, "orange", "footstep");
+  }
+
+  function updateHUD() {
+    const hour = hourFromTick(currentTick);
+    hud.innerHTML = `
+      Night: ${night} / ${TOTAL_NIGHTS}<br>
+      Time: ${timeFromTick(currentTick)} (towards 6 AM)<br>
+      Hour: ${hour === 12 ? "12 AM" : hour + " AM"}<br>
+      Power: ${power.toFixed(0)}%<br>
+      Door: ${doorClosed ? "CLOSED" : "OPEN"}<br>
+      Computer: ${computerOn ? "ON" : "OFF"}<br>
+      Viewing: CAM ${computerOn ? currentCam + 1 : "-"}<br>
+      Night length: ${NIGHT_LENGTH_MINUTES} min
+    `;
+  }
+
+  function updateDoorVisual() {
+    doorSwitch.textContent = doorClosed ? "CLOSED" : "OPEN";
+    doorSwitch.style.background = doorClosed
+      ? "radial-gradient(circle at 50% 20%, #040 0%, #000 70%)"
+      : "radial-gradient(circle at 50% 20%, #400 0%, #000 70%)";
+
+    if (doorClosed) {
+      office.classList.add("doorClosed");
+    } else {
+      office.classList.remove("doorClosed");
+    }
+  }
+
+  function showStatic() {
+    if (!computerOn) return;
+    camStaticOverlay.style.opacity = 0.9;
+    setTimeout(() => {
+      camStaticOverlay.style.opacity = 0;
+    }, 250);
+  }
+
+  function updateCamView(staticMode = false) {
+    if (!computerOn) {
+      camStaticOverlay.style.opacity = 0;
+      camView.style.background = "#000";
+      camInfo.textContent = "";
+      if (camImage) camImage.style.display = "none";
+      moScreen.style.display = "none";
+      return;
+    }
+
+    if (staticMode) {
+      showStatic();
+      if (camImage) camImage.style.display = "none";
+      return;
+    }
+
+    const baseName = CAM_IMAGE_BASES[currentCam];
+    const rohanPresent = currentCam === rohanCam;
+    const fileName = rohanPresent ? `${baseName}.png` : `${baseName}safe.png`;
+
+    if (camImage) {
+      camImage.src = fileName;
+      camImage.style.display = "block";
+    }
+
+    camView.style.background = "#000";
+    camInfo.textContent = `Connected: ${CAM_GRAPH[currentCam].map(i => "C" + (i+1)).join(", ")}`;
+  }
+
+  function updateMap() {
+    mapNodes.forEach((node, i) => {
+      node.classList.toggle("activeCam", computerOn && i === currentCam);
+    });
+  }
+
+  function randomNextCam(fromCam) {
+    const neighbors = CAM_GRAPH[fromCam];
+    if (!neighbors || neighbors.length === 0) return fromCam;
+    const closer = neighbors.filter(n => n < fromCam);
+    if (closer.length > 0 && Math.random() < 0.7) {
+      return closer[Math.floor(Math.random() * closer.length)];
+    }
+    return neighbors[Math.floor(Math.random() * neighbors.length)];
+  }
+
+  function rohanAttackSequence() {
+    footstepMsg("Footsteps getting LOUDER...");
+    moving = true;
+    setTimeout(() => {
+      moving = false;
+      if (!doorClosed) {
+        showJumpscare("rohan");
+      } else {
+        tutorial("He slammed into the door. You blocked him.");
+        rohanCam = Math.random() < 0.5 ? 4 : 5;
+        updateCamView();
+        updateMap();
+      }
+    }, 2000);
+  }
+
+  function moveRohan() {
+    if (gameOver || moving) return;
+
+    if (rohanCam === 0) {
+      footstepMsg("Footsteps outside. Close the door!");
+      rohanAttackSequence();
+      return;
+    }
+
+    const from = rohanCam;
+    const to = randomNextCam(from);
+
+    moving = true;
+    tutorial("Rohan is moving...");
+    showStatic();
+
+    if (computerOn && currentCam === from) {
+      updateCamView(true);
+    }
+
+    setTimeout(() => {
+      rohanCam = to;
+      moving = false;
+      setMessage("");
+      updateCamView();
+      updateMap();
+
+      if (rohanCam === 0) {
+        footstepMsg("Rohan reached CAM 1. Listen for footsteps.");
+      }
+    }, 700);
+  }
+
+  function showRohanJumpscare() {
+    gameOver = true;
+    rohanBehind.style.display = "flex";
+    rohanBehindImg.style.transform = "scale(1)";
+    monitor.style.animation = "screenSlideDown 0.8s forwards";
+    rohanBehindImg.style.animation = "rohanZoom 0.8s forwards";
+
+    setTimeout(() => {
+      overlay.style.display = "flex";
+      jumpscareImage.src = "Rohanpic.jpg";
+    }, 800);
+
+    if (loopId !== null) {
+      clearInterval(loopId);
+      loopId = null;
+    }
+    clearElRobertoState();
+    clearMoState();
+    setMessage("You were caught.", "red");
+  }
+
+  function showElRobertoJumpscare() {
+    gameOver = true;
+    elRobertoPeek.style.animation = "elRobertoZoom 0.6s forwards";
+    setTimeout(() => {
+      overlay.style.display = "flex";
+      jumpscareImage.src = "elrobertojumpscare.png";
+    }, 600);
+
+    if (loopId !== null) {
+      clearInterval(loopId);
+      loopId = null;
+    }
+    clearElRobertoState();
+    clearMoState();
+    setMessage("You were caught.", "red");
+  }
+
+  function showMoJumpscare() {
+    gameOver = true;
+    moHolo.style.animation = "moZoom 0.6s forwards";
+    setTimeout(() => {
+      overlay.style.display = "flex";
+      jumpscareImage.src = "mo_holo.png";
+    }, 600);
+
+    if (loopId !== null) {
+      clearInterval(loopId);
+      loopId = null;
+    }
+    clearElRobertoState();
+    clearMoState();
+    setMessage("You were caught.", "red");
+  }
+
+  function showJumpscare(killer) {
+    if (killer === "elroberto") {
+      showElRobertoJumpscare();
+    } else if (killer === "mo") {
+      showMoJumpscare();
+    } else {
+      showRohanJumpscare();
+    }
+  }
+
+  // === EL ROBERTO ===
+
+  function maybeTriggerElRobertoPopup() {
+    if (night < 2) return; // only from Night 2
+    if (gameOver || elRobertoActive || !computerOn) return;
+    if (currentTick - lastElRobertoTime < 5) return;
+    if (Math.random() < 0.07) {
+      openElRobertoPopup();
+    }
+  }
+
+  function openElRobertoPopup() {
+    elRobertoActive = true;
+    elRobertoPopupVisible = true;
+    elRobertoPopup.style.display = "block";
+    elRobertoReply.textContent = "";
+    elRobertoButtons.innerHTML = "";
+
+    const punishMode = Math.random() < 0.4;
+
+    if (punishMode) {
+      const btn1 = createElRobertoButton("No");
+      const btn2 = createElRobertoButton("No");
+      elRobertoButtons.appendChild(btn1);
+      elRobertoButtons.appendChild(btn2);
+    } else {
+      const btnYes = createElRobertoButton("Yes");
+      const btnNo = createElRobertoButton("No");
+      elRobertoButtons.appendChild(btnYes);
+      elRobertoButtons.appendChild(btnNo);
+    }
+  }
+
+  function createElRobertoButton(label) {
+    const btn = document.createElement("button");
+    btn.className = "popupBtn";
+    btn.textContent = label;
+    btn.onclick = () => handleElRobertoAnswer(label);
+    return btn;
+  }
+
+  function handleElRobertoAnswer(label) {
+    if (gameOver) return;
+
+    if (label === "Yes") {
+      elRobertoReply.textContent = "Ok, good job.";
+      tutorial("El Roberto is pleased.");
+      setTimeout(closeElRobertoPopup, 1200);
+      elRobertoActive = false;
+      lastElRobertoTime = currentTick;
+    } else {
+      elRobertoReply.textContent = "What?! You shall be punished.";
+      tutorial("You angered El Roberto.");
+      setTimeout(closeElRobertoPopup, 1200);
+      startElRobertoPunishTimer();
+      lastElRobertoTime = currentTick;
+    }
+  }
+
+  function closeElRobertoPopup() {
+    elRobertoPopupVisible = false;
+    elRobertoPopup.style.display = "none";
+  }
+
+  function randomElRobertoPosition() {
+    const officeRect = document.getElementById("office").getBoundingClientRect();
+    const w = 120;
+    const h = 160;
+
+    const minX = 0;
+    const maxX = officeRect.width - w;
+    const minY = 0;
+    const maxY = officeRect.height - h;
+
+    const x = Math.random() * (maxX - minX) + minX;
+    const y = Math.random() * (maxY - minY) + minY;
+
+    elRobertoPeek.style.left = x + "px";
+    elRobertoPeek.style.top = y + "px";
+  }
+
+  function startElRobertoPunishTimer() {
+    if (elRobertoPunishTimer) clearTimeout(elRobertoPunishTimer);
+    elRobertoPunishTimer = setTimeout(() => {
+      if (gameOver) return;
+      showElRobertoPeek();
+    }, 10000);
+  }
+
+  function showElRobertoPeek() {
+    elRobertoPeekVisible = true;
+    randomElRobertoPosition();
+    elRobertoPeek.style.display = "block";
+    elRobertoPeek.style.animation = "none";
+    tutorial("El Roberto is peeking... click him to send him away!");
+
+    setTimeout(() => {
+      if (elRobertoPeekVisible && !gameOver) {
+        showJumpscare("elroberto");
+      }
+    }, 5000);
+  }
+
+  elRobertoPeek.onclick = () => {
+    if (gameOver) return;
+    elRobertoPeekVisible = false;
+    elRobertoPeek.style.display = "none";
+    tutorial("You sent El Roberto away (for now).");
+    elRobertoActive = false;
+    if (elRobertoPunishTimer) {
+      clearTimeout(elRobertoPunishTimer);
+      elRobertoPunishTimer = null;
+    }
+  };
+
+  function clearElRobertoState() {
+    elRobertoActive = false;
+    elRobertoPopupVisible = false;
+    elRobertoPeekVisible = false;
+    elRobertoPopup.style.display = "none";
+    elRobertoPeek.style.display = "none";
+    elRobertoPeek.style.animation = "none";
+    if (elRobertoPunishTimer) {
+      clearTimeout(elRobertoPunishTimer);
+      elRobertoPunishTimer = null;
+    }
+  }
+
+  // === MO LOGIC ===
+
+  function triggerMoScreen() {
+    moState = "screenShown";
+    moScreen.style.display = "block";
+    setTimeout(() => {
+      if (moState === "screenShown") {
+        moScreen.style.display = "none";
+      }
+    }, 400);
+  }
+
+  function triggerMoHolo() {
+    moState = "holoFading";
+    moHoloOpacity = 0;
+    moHolo.style.display = "block";
+    moHolo.style.opacity = "0";
+    moHolo.style.animation = "none";
+
+    if (moHoloInterval) clearInterval(moHoloInterval);
+    // slower, smoother fade: ~8 seconds to full
+    moHoloInterval = setInterval(() => {
+      if (gameOver) {
+        clearInterval(moHoloInterval);
+        return;
+      }
+      moHoloOpacity += 0.02;
+      if (moHoloOpacity >= 1) {
+        moHoloOpacity = 1;
+        moHolo.style.opacity = "1";
+        clearInterval(moHoloInterval);
+        moHoloInterval = null;
+        showJumpscare("mo");
+        return;
+      }
+      moHolo.style.opacity = String(moHoloOpacity);
+    }, 160);
+  }
+
+  function clearMoState() {
+    moState = "idle";
+    moHoloOpacity = 0;
+    moScreen.style.display = "none";
+    moHolo.style.display = "none";
+    moHolo.style.opacity = "0";
+    moHolo.style.animation = "none";
+    if (moHoloInterval) {
+      clearInterval(moHoloInterval);
+      moHoloInterval = null;
+    }
+  }
+
+  // === NIGHT TUTORIALS ===
+
+  function cancelTutorialTimers() {
+    if (tutorialTimer) {
+      tutorialTimer.forEach(id => clearTimeout(id));
+    }
+    tutorialTimer = [];
+  }
+
+  function scheduleNightTutorials() {
+    cancelTutorialTimers();
+    tutorialTimer = [];
+
+    if (night === 1) {
+      tutorial("Night 1: Survive until 6 AM. Watch your power.");
+      tutorialTimer.push(setTimeout(() => {
+        tutorial("Use the CAM buttons on the map to watch Rohan.");
+      }, 6000));
+      tutorialTimer.push(setTimeout(() => {
+        tutorial("When you hear footsteps near, CLOSE the door.");
+      }, 12000));
+      tutorialTimer.push(setTimeout(() => {
+        tutorial("Doors use a lot of power. Open them when it's safe.");
+      }, 18000));
+    } else if (night === 2) {
+      tutorial("Night 2: Someone else is watching you.");
+      tutorialTimer.push(setTimeout(() => {
+        tutorial("If El Roberto pops up on screen, answer him quickly.");
+      }, 7000));
+      tutorialTimer.push(setTimeout(() => {
+        tutorial("Make him happy, or he will appear in the room.");
+      }, 15000));
+    } else if (night === 3) {
+      tutorial("Night 3: The monitor itself isn't safe anymore.");
+      tutorialTimer.push(setTimeout(() => {
+        tutorial("Sometimes MO will flash on the cameras when you switch.");
+      }, 7000));
+      tutorialTimer.push(setTimeout(() => {
+        tutorial("If his hologram appears on the right... TURN THE COMPUTER OFF.");
+      }, 15000));
+      tutorialTimer.push(setTimeout(() => {
+        tutorial("Turning it off will disrupt MO. Wait too long and he will reach you.");
+      }, 23000));
+    }
+  }
+
+  // === NIGHT FLOW ===
+
+  function resetNightState() {
+    currentCam = 0;
+    rohanCam = 5;
+    doorClosed = false;
+    power = 100;
+    gameOver = false;
+    currentTick = 0;
+    moving = false;
+    computerOn = true;
+    overlay.style.display = "none";
+    nightTransition.style.display = "none";
+    rohanBehind.style.display = "none";
+    monitor.style.animation = "none";
+    rohanBehindImg.style.animation = "none";
+    monitor.style.transform = "translateX(-50%)";
+
+    office.classList.remove("doorClosed");
+
+    setMessage("");
+    clearElRobertoState();
+    clearMoState();
+    cancelTutorialTimers();
+
+    updateDoorVisual();
+    updateCamView();
+    updateMap();
+    updateHUD();
+    powerButton.classList.remove("off");
+    powerButton.textContent = "POWER: ON";
+
+    // Schedule night-specific tutorials for first 3 nights
+    if (night <= 3) {
+      scheduleNightTutorials();
+    }
+  }
+
+  function startNight() {
+    resetNightState();
+
+    if (loopId !== null) clearInterval(loopId);
+
+    loopId = setInterval(() => {
+      if (gameOver) return;
+
+      currentTick++;
+
+      const difficultyMultiplier = 1 + (night - 1) * POWER_INCREASE_PER_NIGHT;
+      if (computerOn) {
+        power -= BASE_IDLE_DRAIN * difficultyMultiplier;
+        if (doorClosed) power -= BASE_DOOR_EXTRA_DRAIN * difficultyMultiplier;
+      } else {
+        power -= BASE_COMPUTER_OFF_DRAIN * difficultyMultiplier;
+      }
+
+      if (power <= 0) {
+        power = 0;
+        showJumpscare("rohan");
+        return;
+      }
+
+      if (Math.random() < ROHAN_MOVE_CHANCE_PER_TICK) {
+        moveRohan();
+      }
+
+      maybeTriggerElRobertoPopup();
+
+      if (currentTick >= TOTAL_TICKS && !gameOver) {
+        endNightTransition();
+        return;
+      }
+
+      updateHUD();
+    }, TICK_MS);
+  }
+
+  function endNightTransition() {
+    if (loopId !== null) {
+      clearInterval(loopId);
+      loopId = null;
+    }
+
+    nightTransition.style.display = "flex";
+    transitionNight.textContent = `Night ${night} complete`;
+    transitionTime.textContent = "05:59 AM";
+
+    setTimeout(() => {
+      transitionTime.textContent = "06:00 AM";
+      setTimeout(() => {
+        if (night < TOTAL_NIGHTS) {
+          night++;
+          startNight();
+        } else {
+          transitionNight.textContent = "You survived all 5 nights!";
+        }
+      }, 1000);
+    }, 1500);
+  }
+
+  // === MAP & CONTROLS ===
+
+  function createMap() {
+    mapContainer.innerHTML = "";
+    mapNodes = [];
+    for (let i = 0; i < 6; i++) {
+      const node = document.createElement("div");
+      node.className = "mapNode";
+      node.textContent = "CAM " + (i + 1);
+      node.dataset.index = i;
+      node.onclick = () => {
+        if (gameOver || moving || !computerOn) return;
+        const idx = parseInt(node.dataset.index, 10);
+        switchCamera(idx);
+      };
+      mapContainer.appendChild(node);
+      mapNodes.push(node);
+    }
+  }
+
+  function switchCamera(targetIndex) {
+    if (targetIndex === currentCam) return;
+    currentCam = targetIndex;
+    tutorial("Switching camera...");
+    showStatic();
+
+    // MO logic only from Night 3 onwards
+    if (night >= 3) {
+      if (moState === "idle") {
+        if (Math.random() < 0.2) {
+          triggerMoScreen();
+        }
+      } else if (moState === "screenShown") {
+        moScreen.style.display = "none";
+        triggerMoHolo();
+      }
+    }
+
+    updateMap();
+    updateCamView(true);
+    setTimeout(() => {
+      updateCamView(false);
+      setMessage("");
+      updateHUD();
+    }, 250);
+  }
+
+  doorSwitch.onclick = () => {
+    if (gameOver) return;
+    doorClosed = !doorClosed;
+    updateDoorVisual();
+    tutorial(doorClosed ? "Door closed – heavy power drain." : "Door open.");
+    updateHUD();
+  };
+
+  resetBtn.onclick = () => {
+    night = 1;
+    startNight();
+  };
+
+  powerButton.onclick = () => {
+    if (gameOver) return;
+    computerOn = !computerOn;
+
+    if (computerOn) {
+      powerButton.classList.remove("off");
+      powerButton.textContent = "POWER: ON";
+      tutorial("Computer ON – you can see the cams.");
+    } else {
+      powerButton.classList.add("off");
+      powerButton.textContent = "POWER: OFF";
+      tutorial("Computer OFF – saving power, flying blind.");
+
+      // Instantly stop MO if hologram is active
+      if (moState === "holoFading") {
+        tutorial("MO has been disrupted.");
+        clearMoState();
+      }
+    }
+
+    updateCamView();
+    updateMap();
+    updateHUD();
+  };
+
+  // Init
+  createMap();
+  updateMap();
+  startNight();
+</script>
+</body>
+</html>
