@@ -805,13 +805,13 @@
   <div id="office">
     <button id="resetBtn">Reset</button>
 <div id="rohanPeekSmall">
-  <img src="Rohanpic.jpg" alt="Rohan small">
+  <img src="Rohanpic.png" alt="Rohan small">
 </div>
 
 <div id="rohanBlackCut"></div>
 
 <div id="rohanStaticOverlay">
-  <img id="rohanStaticImg" src="Rohanpic.jpg" alt="Rohan static">
+  <img id="rohanStaticImg" src="Rohanpic.png" alt="Rohan static">
   <div id="rohanStaticNoise1"></div>
   <div id="rohanStaticNoise2"></div>
 </div>
@@ -827,7 +827,7 @@
     <div id="doorBlockRight"></div>
 
     <div id="rohanBehind">
-      <img src="Rohanpic.jpg" alt="Rohan behind monitor">
+      <img src="Rohanpic.png" alt="Rohan behind monitor">
     </div>
 
     <div id="elRobertoPeek">
@@ -876,7 +876,7 @@
     <div id="message"></div>
 
     <div id="overlay">
-      <img id="jumpscareImage" src="Rohanpic.jpg" alt="Jumpscare">
+      <img id="jumpscareImage" src="Rohanpic.png" alt="Jumpscare">
     </div>
 
     <div id="nightTransition">
@@ -1209,7 +1209,7 @@ const rohanStaticImg = document.getElementById("rohanStaticImg");
       // 3) static Rohan full screen
       rohanBlackCut.style.display = "none";
 
-      rohanStaticImg.src = "Rohanpic.jpg";
+      rohanStaticImg.src = "Rohanpic.png";
 rohanStaticOverlay.style.display = "block";
 rohanStaticOverlay.classList.add("flashing");
 rohanStaticImg.classList.add("rohanChaos"); // NEW
@@ -1223,7 +1223,7 @@ rohanStaticImg.classList.add("rohanChaos"); // NEW
       // 5) optional: bring in your old overlay image on top
       setTimeout(() => {
         overlay.style.display = "flex";
-        jumpscareImage.src = "Rohanpic.jpg";
+        jumpscareImage.src = "Rohanpic.png";
       }, 900);
 
     }, 300); // black cut duration
